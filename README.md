@@ -57,6 +57,6 @@ Retrain with `python -m train.world_train` and `python -m train.player_train`; b
 
 ## Tests
 
-`python -m pytest -q` - 161 tests: layers against numeric gradients, every teacher rule, the trained world network against the teacher on held-out fields, long snakes and whole rounds, the opponent against the bot, and the window off-screen. Deliberately broken rules, gradients and key queues turn them red.
+`python -m pytest -q` - 163 tests: layers against numeric gradients, every teacher rule, the trained world network against the teacher on held-out fields, long snakes and whole rounds, the opponent against the bot, and the window off-screen. Deliberately broken rules, gradients and key queues turn them red.
 
 Python, numpy, PySide6. MIT licence.

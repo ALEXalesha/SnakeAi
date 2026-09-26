@@ -233,18 +233,25 @@ class Board(QWidget):
             p.drawLine(center + QPointF(-k, -k), center + QPointF(k, k))
             p.drawLine(center + QPointF(-k, k), center + QPointF(k, -k))
 
-    def _draw_text(self, p, rect, pal):
+    def caption_layout(self, rect):
+        """Шрифты и места крупной надписи поверх поля (отсчёт, итог раунда): крупный шрифт,
+        мелкий, полоса-подложка, место главной строки и место подписи."""
         big = QFont(self.font())
-        big.setPixelSize(max(18, int(rect.height() * 0.14)))
+        big.setPixelSize(max(18, int(rect.height() * 0.093)))
         big.setBold(True)
         small = QFont(self.font())
         small.setPixelSize(max(12, int(rect.height() * 0.045)))
-        band_h = rect.height() * (0.3 if self.subtext else 0.22)
+        band_h = rect.height() * (0.2 if self.subtext else 0.15)
         band = QRectF(rect.x(), rect.center().y() - band_h / 2, rect.width(), band_h)
+        main = QRectF(band.x(), band.y(), band.width(), band.height() * (0.68 if self.subtext else 1))
+        sub = QRectF(band.x(), main.bottom() - band.height() * 0.08, band.width(), band.height() * 0.4)
+        return big, small, band, main, sub
+
+    def _draw_text(self, p, rect, pal):
+        big, small, band, main, sub = self.caption_layout(rect)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(0, 0, 0, 120))
         p.drawRect(band)
-        main = QRectF(band.x(), band.y(), band.width(), band.height() * (0.68 if self.subtext else 1))
         p.setFont(big)
         p.setPen(QColor(0, 0, 0, 160))
         p.drawText(main.translated(2, 3), Qt.AlignmentFlag.AlignCenter, self.text)
@@ -253,6 +260,4 @@ class Board(QWidget):
         if self.subtext:
             p.setFont(small)
             p.setPen(QColor(255, 255, 255, 210))
-            sub = QRectF(band.x(), main.bottom() - band.height() * 0.08, band.width(),
-                         band.height() * 0.4)
             p.drawText(sub, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, self.subtext)

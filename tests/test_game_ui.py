@@ -4,14 +4,15 @@ import pathlib
 import numpy as np
 import pytest
 from PySide6.QtCore import QEvent, Qt
-from PySide6.QtGui import QImage, QKeyEvent
+from PySide6.QtGui import QFontInfo, QFontMetricsF, QImage, QKeyEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLabel
 
 from game import match as M
 from game import store as st
-from game.app import MainWindow
+from game.app import MIN_HEIGHT, MIN_WIDTH, MainWindow
 from game.board import PALETTES, Board
+from game.screens import DRAW_SUBTEXT, ROUND_TEXT
 from game.sound import Sounds
 from qt_app import PLAYER_PASSPORT, WORLD_PASSPORT, Const, FakeModels, qapp
 from world.cells import DOWN, LEFT, RIGHT, UP
@@ -273,3 +274,35 @@ def test_stats_show_win_rate_from_the_real_player_passport(make_window):
         text = w.stats_screen.level_cells[lv, "win_vs_bot"].text()
         assert text.endswith("%"), (lv, text)
         assert text == f"{round(real['levels'][lv]['vs_bot']['win'] * 100)}%"
+
+
+# Замечание Алексея (26.09.2026): в конце раунда надпись о том, кто победил, слишком крупная.
+# Было: шрифт 14% высоты поля, «Раунд за сетью» шире самого поля (104%). Закон: надпись на
+# поле не больше 10% высоты поля и не шире 75% поля, а со шрифтом на 10% шире, чем в
+# offscreen, целиком помещается в свою полосу - в обычном окне и в окне минимального размера.
+CAPTIONS = [("3", "Раунд 1")] + [(t, DRAW_SUBTEXT if k == "draw" else "счёт 2 : 3")
+                                 for k, t in ROUND_TEXT.items()]
+
+
+@pytest.mark.parametrize("size", [(1040, 720), (MIN_WIDTH, MIN_HEIGHT)])
+def test_board_caption_is_modest_and_fits(make_window, size):
+    w = make_window()
+    w.show()
+    w.play()
+    w.resize(*size)
+    QTest.qWait(30)
+    board = w.match_screen.board
+    rect = board.field_rect()
+    for text, sub in CAPTIONS:
+        board.set_state(start_field(), text=text, subtext=sub)
+        big, small, band, main, sub_rect = board.caption_layout(rect)
+        assert QFontInfo(big).family(), "нет системных шрифтов - мерить нечего"
+        fm = QFontMetricsF(big)
+        width = fm.horizontalAdvance(text)
+        assert big.pixelSize() <= rect.height() * 0.10, (size, text, big.pixelSize(), rect.height())
+        assert width <= rect.width() * 0.75, (size, text, width, rect.width())
+        assert width * 1.1 <= main.width() and fm.height() <= main.height(), (size, text)
+        fs = QFontMetricsF(small)
+        assert fs.horizontalAdvance(sub) * 1.1 <= sub_rect.width(), (size, sub)
+        assert fs.height() <= sub_rect.height() and sub_rect.bottom() <= band.bottom() + 1, (size, sub)
+        assert rect.contains(band), (size, text)

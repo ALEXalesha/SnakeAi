@@ -23,6 +23,9 @@ KEY_DIRS = {
 VK_DIRS = {0x57: UP, 0x53: DOWN, 0x41: LEFT, 0x44: RIGHT}
 
 TARGET = 3
+# Надписи на поле в конце раунда (рисует Board.caption_layout).
+ROUND_TEXT = {"win": "Раунд ваш!", "lose": "Раунд за сетью", "draw": "Ничья"}
+DRAW_SUBTEXT = "обе змейки врезались - очко никому"
 
 
 def label(text="", name=None, wrap=False):
@@ -389,8 +392,8 @@ class MatchScreen(QWidget):
         if m.phase == M.COUNTDOWN:
             text, sub = str(m.count), f"Раунд {m.round}"
         elif m.phase == M.ROUND_OVER:
-            text = {"win": "Раунд ваш!", "lose": "Раунд за сетью", "draw": "Ничья"}[m.round_result]
-            sub = "обе змейки врезались - очко никому" if m.round_result == "draw" else \
+            text = ROUND_TEXT[m.round_result]
+            sub = DRAW_SUBTEXT if m.round_result == "draw" else \
                 f"счёт {m.score[0]} : {m.score[1]}"
         self.board.set_state(m.field, m.food_probs, s["show_food_map"], m.crashed, text, sub)
 
