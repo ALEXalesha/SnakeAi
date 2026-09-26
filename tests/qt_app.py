@@ -82,8 +82,8 @@ WORLD_PASSPORT = {
 }
 
 PLAYER_PASSPORT = {
-    "levels": {"novice": {"win_vs_bot": 0.2}, "medium": {"win_vs_bot": 0.45},
-               "strong": {"win_vs_bot": 0.6}},
+    "levels": {"novice": {"vs_bot": {"win": 0.2}}, "medium": {"vs_bot": {"win": 0.45}},
+               "strong": {"vs_bot": {"win": 0.6}}},
     "imitation_curve": [{"step": i * 50, "accuracy": 0.3 + 0.6 * i / 40} for i in range(41)],
     "rl_curve": [{"episode": i, "reward": float(np.sin(i / 5)) + i / 20} for i in range(60)],
 }

@@ -1,4 +1,5 @@
 import json
+import pathlib
 
 import numpy as np
 import pytest
@@ -260,3 +261,15 @@ def test_text_fits_at_minimum_window_size(make_window, scale):
         clipped = [(lb.text()[:40], lb.height(), lb.heightForWidth(lb.width())) for lb in wrapped_labels(w)
                    if lb.heightForWidth(lb.width()) > lb.height()]
         assert clipped == [], (name, clipped)
+
+
+def test_stats_show_win_rate_from_the_real_player_passport(make_window):
+    """Столбец «выигрыш у бота» читает настоящий паспорт models/player.json (levels.*.vs_bot.win),
+    а не выдуманный формат: в первом кадре статистики там стояли прочерки."""
+    real = json.loads((pathlib.Path(__file__).resolve().parents[1] / "models" / "player.json").read_text(encoding="utf-8"))
+    w = make_window(FakeModels(passports={"world": WORLD_PASSPORT, "player": real}))
+    w.show_stats()
+    for lv in ("novice", "medium", "strong"):
+        text = w.stats_screen.level_cells[lv, "win_vs_bot"].text()
+        assert text.endswith("%"), (lv, text)
+        assert text == f"{round(real['levels'][lv]['vs_bot']['win'] * 100)}%"

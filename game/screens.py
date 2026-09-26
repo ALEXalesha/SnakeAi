@@ -546,7 +546,9 @@ class StatsScreen(QWidget):
             self.level_cells[lv, "matches"].setText(f"{n['match_wins']} / {n['match_losses']}")
             self.level_cells[lv, "rounds"].setText(f"{n['wins']} / {n['losses']} / {n['draws']}")
             info = levels.get(lv) if isinstance(levels.get(lv), dict) else {}
-            win = info.get("win_vs_bot")
+            # паспорт обучения (train/player_train.py): levels.<уровень>.vs_bot.win - доля от 0 до 1
+            vs_bot = info.get("vs_bot") if isinstance(info.get("vs_bot"), dict) else {}
+            win = vs_bot.get("win")
             ok = isinstance(win, (int, float)) and not isinstance(win, bool)
             self.level_cells[lv, "win_vs_bot"].setText(pct(win, 0) if ok else "-")
 
