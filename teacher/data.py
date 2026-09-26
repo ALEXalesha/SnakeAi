@@ -14,6 +14,7 @@ from world.encode import encode
 from world.start import start_field
 
 CHANGE_WEIGHT = 20.0
+SNAKE_WEIGHT = 5.0
 
 
 def grow(field, s, length, rng):
@@ -133,7 +134,10 @@ def tensors(samples):
             t = tail(s.field, k)
             if t is not None:
                 near[b][t] = True
-    weight = np.where(near, CHANGE_WEIGHT, 1.0).astype(np.float32)
+    # Клетки змеек - с весом: «тело остаётся телом» самое частое правило, и без веса сеть
+    # изредка принимала клетку свёрнутой змейки за хвост и стирала (замер 26.09).
+    snake = (fields >= 2)
+    weight = np.where(near, CHANGE_WEIGHT, np.where(snake, SNAKE_WEIGHT, 1.0)).astype(np.float32)
     weight[crash] = 0.0
     ev_weight = np.ones_like(events)
     ev_weight[crash, :2] = 0.0     # «съела» на ходу со столкновением не нужно

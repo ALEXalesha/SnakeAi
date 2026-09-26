@@ -5,6 +5,7 @@ import pytest
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QImage, QKeyEvent
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QLabel
 
 from game import match as M
 from game import store as st
@@ -216,3 +217,46 @@ def test_board_keeps_square_cells(app):
     rect = b.field_rect()
     assert abs(rect.width() - rect.height()) < 1e-6 and rect.height() <= 500
     assert rect.center().x() == pytest.approx(450, abs=1)
+
+
+# Законы из крестиков-ноликов (26.09.2026, Алексей: подсказка обрезана на его экране):
+# подпись с переносом строк не ограничена по высоте и целиком помещается в окне
+# минимального размера, даже если текст на 10% шире, чем в offscreen.
+QWIDGETSIZE_MAX = 16777215
+
+
+def wrapped_labels(widget):
+    return [lb for lb in widget.findChildren(QLabel) if lb.wordWrap() and lb.isVisible() and lb.text()]
+
+
+def screens(w):
+    return (("меню", w.show_menu), ("статистика", w.show_stats), ("настройки", w.show_settings),
+            ("матч", w.play))
+
+
+def test_wrapping_labels_are_never_capped_in_height(make_window):
+    w = make_window(FakeModels(passports={"world": WORLD_PASSPORT, "player": PLAYER_PASSPORT}))
+    w.show()
+    for name, show in screens(w):
+        show()
+        QTest.qWait(10)
+        capped = [lb.text() for lb in wrapped_labels(w) if lb.maximumHeight() < QWIDGETSIZE_MAX]
+        assert capped == [], (name, capped)
+
+
+@pytest.mark.parametrize("scale", [1.0, 1.1])
+def test_text_fits_at_minimum_window_size(make_window, scale):
+    w = make_window(FakeModels(passports={"world": WORLD_PASSPORT, "player": PLAYER_PASSPORT}))
+    w.show()
+    w.play()                                  # все экраны созданы - шрифты правим один раз
+    w.show_menu()
+    for lb in w.findChildren(QLabel):
+        px = lb.font().pixelSize() if lb.font().pixelSize() > 0 else round(lb.font().pointSizeF() * 96 / 72)
+        lb.setStyleSheet(f"font-size: {round(px * scale)}px;")
+    for name, show in screens(w):
+        show()
+        w.resize(w.minimumSize())
+        QTest.qWait(30)
+        clipped = [(lb.text()[:40], lb.height(), lb.heightForWidth(lb.width())) for lb in wrapped_labels(w)
+                   if lb.heightForWidth(lb.width()) > lb.height()]
+        assert clipped == [], (name, clipped)

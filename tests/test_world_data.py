@@ -1,6 +1,6 @@
 import numpy as np
 
-from teacher.data import CHANGE_WEIGHT, Sample, play, random_field, tensors
+from teacher.data import CHANGE_WEIGHT, SNAKE_WEIGHT, Sample, play, random_field, tensors
 from world.cells import EMPTY, FOOD, NONE, build, chain, tail
 
 
@@ -18,6 +18,13 @@ def test_changed_cells_and_neighbours_weigh_more():
     assert w[0, 2, 4] == CHANGE_WEIGHT      # новая голова
     assert w[0, 2, 1] == CHANGE_WEIGHT      # исчезнувший хвост
     assert w[0, 0, 7] == 1.0                # далёкая пустая клетка
+
+
+def test_snake_cells_weigh_more_than_empty():
+    f = build(12, 12, [[(2, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4), (4, 5)], [(10, 10), (10, 9), (10, 8)]])
+    _, _, w, *_ = tensors([sample(f)])
+    assert w[0, 3, 3] == SNAKE_WEIGHT       # середина тела, далеко от изменений
+    assert w[0, 8, 1] == 1.0
 
 
 def test_tail_weighs_more_even_when_it_stays():

@@ -562,7 +562,8 @@ class StatsScreen(QWidget):
 
     @staticmethod
     def _accuracy(final):
-        rows = (("field", "поле совпало целиком", 0.995, True),
+        rows = (("field_symmetric", "поле совпало целиком, в игре (8 видов поля)", 0.995, True),
+                ("field", "поле совпало целиком, один проход", 0.995, True),
                 ("events", "события (съел, врезался)", 0.999, True),
                 ("food_on_occupied", "вероятность еды на занятых клетках", 0.01, False))
         parts = []

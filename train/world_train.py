@@ -67,6 +67,18 @@ def evaluate(net, t, chunk=64):
     }
 
 
+def evaluate_symmetric(net, samples):
+    """Доля ходов без столкновения, где поле совпало целиком, - так, как сеть ходит в игре:
+    с усреднением по восьми видам поля (WorldNet.predict)."""
+    ok = n = 0
+    for s in samples:
+        if s.events[2:].max() > 0:
+            continue
+        n += 1
+        ok += bool(np.array_equal(net.predict(s.field, s.a0, s.a1)[0], s.moved))
+    return ok / max(n, 1)
+
+
 def train(steps=20000, batch=32, seed=0, pool=12000, big_pool=3000, lr=2e-3,
           eval_every=500, log=print, hidden=48, init=None):
     rng = np.random.default_rng(seed)
@@ -120,8 +132,9 @@ def main():
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     net.save(args.out + ".npz")
     with open(args.out + ".json", "w", encoding="utf-8") as f:
+        final = {**curve[-1], "field_symmetric": round(evaluate_symmetric(net, play(np.random.default_rng(args.seed + 1000), 32, 32, 2000)), 5)}
         json.dump({"steps": steps_before + args.steps, "seed": args.seed, "init": bool(args.init), "lr": args.lr,
-                   "final": curve[-1], "curve": curve},
+                   "final": final, "curve": curve},
                   f, ensure_ascii=False, indent=1)
 
 

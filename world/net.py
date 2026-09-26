@@ -17,6 +17,7 @@ from nn.layers import Conv1x1, Conv3x3, Dense, GlobalMax, ReLU
 from nn.losses import sigmoid, softmax
 from world.cells import FOOD, N_CLASSES
 from world.encode import IN_CHANNELS, encode
+from world.symmetry import VIEWS, action, apply, undo
 
 EVENTS = ("ate0", "ate1", "crash0", "crash1")
 
@@ -72,15 +73,28 @@ class WorldNet:
         df = L["c2"].backward(r[1].backward(df))
         return L["c1"].backward(r[0].backward(df))
 
-    def predict(self, field, a0, a1):
+    def predict(self, field, a0, a1, symmetric=True):
         """Прогон сети на одном поле: (классы нового поля по argmax, события, вероятности
-        классов, карта еды) - без выбора новой еды."""
-        x = encode(field[None], np.array([a0]), np.array([a1]))
-        cells, food, events = self.forward(x.astype(self.dtype))
-        ev = sigmoid(events[0].astype(np.float64)) > 0.5
-        probs = softmax(cells[0].astype(np.float64))
+        классов, карта еды) - без выбора новой еды.
+
+        symmetric: спросить сеть о восьми поворотах и отражениях поля разом (одним пакетом) и
+        сложить ответы в исходной геометрии - редкие ошибки одного вида гасятся остальными
+        (см. world/symmetry.py). Это та же сеть, никаких правил."""
         H, W = field.shape
-        food_probs = softmax(food[0].reshape(-1).astype(np.float64)).reshape(H, W)
+        views = VIEWS if symmetric else VIEWS[:1]
+        x = np.stack([encode(cm[apply(field, k, flip)][None], np.array([action(a0, perm)]),
+                             np.array([action(a1, perm)]))[0] for k, flip, perm, cm in views])
+        cells, food, events = self.forward(x.astype(self.dtype))
+        probs = np.zeros((H, W, N_CLASSES))
+        food_probs = np.zeros((H, W))
+        for i, (k, flip, _, cm) in enumerate(views):
+            p = softmax(cells[i].astype(np.float64))
+            probs += undo(p, k, flip)[..., cm]
+            fp = softmax(food[i].reshape(-1).astype(np.float64)).reshape(food[i].shape)
+            food_probs += undo(fp, k, flip)
+        probs /= len(views)
+        food_probs /= len(views)
+        ev = sigmoid(events.astype(np.float64)).mean(axis=0) > 0.5
         return probs.argmax(axis=-1).astype(np.int8), ev, probs, food_probs
 
     def step(self, field, a0, a1, rng):
