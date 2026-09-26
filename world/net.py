@@ -72,22 +72,28 @@ class WorldNet:
         df = L["c2"].backward(r[1].backward(df))
         return L["c1"].backward(r[0].backward(df))
 
-    def step(self, field, a0, a1, rng):
-        """Один ход мира сетью. Кода правил здесь нет: только прогон и выбор по выходам."""
+    def predict(self, field, a0, a1):
+        """Прогон сети на одном поле: (классы нового поля по argmax, события, вероятности
+        классов, карта еды) - без выбора новой еды."""
         x = encode(field[None], np.array([a0]), np.array([a1]))
         cells, food, events = self.forward(x.astype(self.dtype))
         ev = sigmoid(events[0].astype(np.float64)) > 0.5
         probs = softmax(cells[0].astype(np.float64))
-        confidence = float(probs.max(axis=-1).min())
         H, W = field.shape
         food_probs = softmax(food[0].reshape(-1).astype(np.float64)).reshape(H, W)
+        return probs.argmax(axis=-1).astype(np.int8), ev, probs, food_probs
+
+    def step(self, field, a0, a1, rng):
+        """Один ход мира сетью. Кода правил здесь нет: только прогон и выбор по выходам."""
+        new, ev, probs, food_probs = self.predict(field, a0, a1)
+        confidence = float(probs.max(axis=-1).min())
         crashed = (bool(ev[2]), bool(ev[3]))
         ate = (bool(ev[0]), bool(ev[1]))
         if any(crashed):
             return Result(None, (False, False), crashed, None, food_probs, confidence)
-        new = probs.argmax(axis=-1).astype(np.int8)
         spot = None
         if any(ate):
+            H, W = field.shape
             k = int(rng.choice(H * W, p=food_probs.reshape(-1)))
             spot = (k // W, k % W)
             new[spot] = FOOD
