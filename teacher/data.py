@@ -9,7 +9,7 @@ from typing import NamedTuple
 import numpy as np
 
 from teacher.rules import step
-from world.cells import DELTA, EMPTY, FOOD, NONE, OPPOSITE, build, head, heading
+from world.cells import DELTA, EMPTY, FOOD, NONE, OPPOSITE, build, head, heading, tail
 from world.encode import encode
 from world.start import start_field
 
@@ -126,6 +126,13 @@ def tensors(samples):
     near[:, :-1] |= changed[:, 1:]
     near[:, :, 1:] |= changed[:, :, :-1]
     near[:, :, :-1] |= changed[:, :, 1:]
+    # Хвосты - всегда с весом: у съевшей змейки хвост не меняется, а правило «хвост
+    # остаётся» самое редкое и единственное дальнее (без веса - половина ошибок сети).
+    for b, s in enumerate(samples):
+        for k in (0, 1):
+            t = tail(s.field, k)
+            if t is not None:
+                near[b][t] = True
     weight = np.where(near, CHANGE_WEIGHT, 1.0).astype(np.float32)
     weight[crash] = 0.0
     ev_weight = np.ones_like(events)

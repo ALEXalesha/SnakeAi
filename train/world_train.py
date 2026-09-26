@@ -68,7 +68,7 @@ def evaluate(net, t, chunk=64):
 
 
 def train(steps=20000, batch=32, seed=0, pool=12000, big_pool=3000, lr=2e-3,
-          eval_every=500, log=print, hidden=48):
+          eval_every=500, log=print, hidden=48, init=None):
     rng = np.random.default_rng(seed)
     t0 = time.time()
     pools = {s: make_pool(rng, s, pool) for s in SIZES}
@@ -76,7 +76,7 @@ def train(steps=20000, batch=32, seed=0, pool=12000, big_pool=3000, lr=2e-3,
     held = make_pool(np.random.default_rng(seed + 1000), 32, 2000)
     log(f"данные готовы за {time.time() - t0:.0f} с")
 
-    net = WorldNet(hidden=hidden, rng=rng)
+    net = WorldNet.load(init) if init else WorldNet(hidden=hidden, rng=rng)
     opt = Adam(net.params(), lr=lr)
     curve = []
     sizes = list(pools)
@@ -105,13 +105,23 @@ def main():
     ap.add_argument("--steps", type=int, default=20000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--hidden", type=int, default=48)
+    ap.add_argument("--lr", type=float, default=2e-3)
+    ap.add_argument("--init", help="дообучать с этих весов (.npz), а не с нуля")
     ap.add_argument("--out", default=os.path.join(MODELS, "world"))
     args = ap.parse_args()
-    net, curve = train(args.steps, seed=args.seed, hidden=args.hidden)
+    net, curve = train(args.steps, seed=args.seed, hidden=args.hidden, lr=args.lr, init=args.init)
+    steps_before = 0
+    if args.init and os.path.exists(os.path.splitext(args.init)[0] + ".json"):
+        # кривая дообучения продолжает прежнюю - в статистике видно всё обучение целиком
+        with open(os.path.splitext(args.init)[0] + ".json", encoding="utf-8") as f:
+            before = json.load(f)
+        steps_before = before["curve"][-1]["step"]
+        curve = before["curve"] + [{**c, "step": c["step"] + steps_before} for c in curve]
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     net.save(args.out + ".npz")
     with open(args.out + ".json", "w", encoding="utf-8") as f:
-        json.dump({"steps": args.steps, "seed": args.seed, "final": curve[-1], "curve": curve},
+        json.dump({"steps": steps_before + args.steps, "seed": args.seed, "init": bool(args.init), "lr": args.lr,
+                   "final": curve[-1], "curve": curve},
                   f, ensure_ascii=False, indent=1)
 
 
