@@ -1,0 +1,76 @@
+"""Загрузка моделей и их паспортов из папки models.
+
+Нет файла или он битый - ModelMissing с понятным текстом для окна, а не падение.
+"""
+import json
+import os
+
+from game import paths
+from game.store import LEVEL_NAMES, LEVELS
+
+
+class ModelMissing(Exception):
+    """Модель не найдена или не читается. Текст исключения показывается игроку."""
+
+
+def _folder(folder):
+    return paths.models_dir() if folder is None else os.fspath(folder)
+
+
+def _need(path, what):
+    if not os.path.isfile(path):
+        raise ModelMissing(f"Нет файла {what}: {path}\nСначала обучите сеть (папка train).")
+
+
+def load_world(folder=None):
+    from world.net import WorldNet
+
+    path = os.path.join(_folder(folder), "world.npz")
+    _need(path, "сети-мира models/world.npz")
+    try:
+        return WorldNet.load(path)
+    except Exception as err:  # noqa: BLE001 - любой сбой чтения - сообщение в окне
+        raise ModelMissing(f"Не удалось прочитать models/world.npz: {err}") from err
+
+
+def load_opponent(level, folder=None):
+    if level not in LEVELS:
+        raise ModelMissing(f"Неизвестный уровень соперника: {level}")
+    name = f"player_{level}.npz"
+    path = os.path.join(_folder(folder), name)
+    _need(path, f"соперника «{LEVEL_NAMES[level]}» models/{name}")
+    try:
+        from player.net import PlayerNet     # лениво: модуль сети соперника пишется отдельно
+    except ImportError as err:
+        raise ModelMissing(f"Нет модуля сети соперника (player.net): {err}") from err
+    try:
+        return PlayerNet.load(path)
+    except Exception as err:  # noqa: BLE001
+        raise ModelMissing(f"Не удалось прочитать models/{name}: {err}") from err
+
+
+def load_passport(name, folder=None):
+    """models/<name>.json как словарь; нет файла, битый или не словарь - None."""
+    path = os.path.join(_folder(folder), f"{name}.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+class Models:
+    """То же для окна: одна папка на всё (в тестах окну подсовывают подделку)."""
+
+    def __init__(self, folder=None):
+        self.folder = folder
+
+    def load_world(self):
+        return load_world(self.folder)
+
+    def load_opponent(self, level):
+        return load_opponent(level, self.folder)
+
+    def load_passport(self, name):
+        return load_passport(name, self.folder)
