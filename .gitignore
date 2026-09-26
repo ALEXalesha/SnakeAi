@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+saves/
+.pytest_cache/
+.remember/
+build/
+dist/
+*.spec
+.ci-venv/
