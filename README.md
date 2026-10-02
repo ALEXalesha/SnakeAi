@@ -4,10 +4,10 @@
 
 **Two-player snake with not a single line of snake rules: the world is moved by a convolutional network of its own, and a second network plays against you.**
 
-[Download for Windows](https://github.com/ALEXalesha/SnakeAiGame/releases/latest) &nbsp;·&nbsp; [Русская версия этого файла](README.ru.md)
+[Download for Windows](https://github.com/ALEXalesha/SnakeAi/releases/latest) &nbsp;·&nbsp; [Русская версия этого файла](README.ru.md)
 
-[![CI](https://github.com/ALEXalesha/SnakeAiGame/actions/workflows/ci.yml/badge.svg)](https://github.com/ALEXalesha/SnakeAiGame/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/ALEXalesha/SnakeAiGame?color=16a34a)](https://github.com/ALEXalesha/SnakeAiGame/releases/latest)
+[![CI](https://github.com/ALEXalesha/SnakeAi/actions/workflows/ci.yml/badge.svg)](https://github.com/ALEXalesha/SnakeAi/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ALEXalesha/SnakeAi?color=16a34a)](https://github.com/ALEXalesha/SnakeAi/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <img src="docs/preview_match.png" width="900" alt="A match: the green snake is the player, the orange one is the network">
@@ -46,7 +46,7 @@ Qt (PySide6): menu, match with a 3-2-1 countdown and pause, statistics with both
 
 ## Running
 
-Download `SnakeAIGame-<version>-portable.zip` or `-setup.exe` from the [releases](https://github.com/ALEXalesha/SnakeAiGame/releases/latest), or from source with Python 3.13:
+Download `SnakeAIGame-<version>-portable.zip` or `-setup.exe` from the [releases](https://github.com/ALEXalesha/SnakeAi/releases/latest), or from source with Python 3.13:
 
 ```
 pip install -r requirements.txt

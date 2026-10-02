@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Публикация на GitHub: https://github.com/ALEXalesha/SnakeAiGame
+# Публикация на GitHub: https://github.com/ALEXalesha/SnakeAi
 #
 #   bash tools/publish_github.sh            # только код
 #   bash tools/publish_github.sh v1.0.0     # код и тег
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 export PATH="$PATH:/c/Program Files/GitHub CLI"
-REPO=ALEXalesha/SnakeAiGame
+REPO=ALEXalesha/SnakeAi
 # Личный адрес не записан здесь строкой: скрипт берёт его из настроек репозитория.
 # Иначе выходило смешно - файл, который убирает почту автора из коммитов, публиковал
 # её открытым текстом на первой же странице.

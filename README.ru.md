@@ -4,10 +4,10 @@
 
 **Змейка на двоих, в которой нет ни строчки правил змейки: мир двигает своя свёрточная нейросеть, а против вас играет вторая сеть.**
 
-[Скачать для Windows](https://github.com/ALEXalesha/SnakeAiGame/releases/latest) &nbsp;·&nbsp; [English version of this file](README.md)
+[Скачать для Windows](https://github.com/ALEXalesha/SnakeAi/releases/latest) &nbsp;·&nbsp; [English version of this file](README.md)
 
-[![CI](https://github.com/ALEXalesha/SnakeAiGame/actions/workflows/ci.yml/badge.svg)](https://github.com/ALEXalesha/SnakeAiGame/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/ALEXalesha/SnakeAiGame?color=16a34a)](https://github.com/ALEXalesha/SnakeAiGame/releases/latest)
+[![CI](https://github.com/ALEXalesha/SnakeAi/actions/workflows/ci.yml/badge.svg)](https://github.com/ALEXalesha/SnakeAi/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ALEXalesha/SnakeAi?color=16a34a)](https://github.com/ALEXalesha/SnakeAi/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <img src="docs/preview_match.png" width="900" alt="Матч: зелёная змейка - игрок, оранжевая - нейросеть">
@@ -107,7 +107,7 @@
 
 ## Запуск
 
-**Готовая сборка:** в [релизах](https://github.com/ALEXalesha/SnakeAiGame/releases/latest)
+**Готовая сборка:** в [релизах](https://github.com/ALEXalesha/SnakeAi/releases/latest)
 два файла, оба ничего не требуют от системы:
 
 - `SnakeAIGame-<версия>-portable.zip` - распаковать и запустить `SnakeAIGame.exe`;
