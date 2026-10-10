@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from player.bot import bot_move, flood
-from player.net import PlayerNet
-from player.view import SIZE, VIEW_LEN, view
-from teacher.data import random_field
-from teacher.rules import step
-from world.cells import DELTA, DOWN, EMPTY, FOOD, LEFT, RIGHT, UP, build, head, heading
+from game.ai.bot import bot_move, flood
+from game.ai.player_net import PlayerNet
+from game.ai.view import SIZE, VIEW_LEN, view
+from game.teacher.data import random_field
+from game.teacher.rules import step
+from game.core.cells import DELTA, DOWN, EMPTY, FOOD, LEFT, RIGHT, UP, build, head, heading
 
 
 def planes(v):
@@ -116,7 +116,7 @@ def test_player_net_acts_and_round_trips(tmp_path):
 
 def test_bot_plays_long_rounds_against_itself():
     rng = np.random.default_rng(0)
-    from world.start import start_field
+    from game.core.start import start_field
     lengths = []
     for _ in range(3):
         f = start_field()

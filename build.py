@@ -77,7 +77,8 @@ def run_pyinstaller(console=False):
     root = os.path.abspath(os.path.dirname(__file__))
     args = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
             "--name", APP, "--icon", os.path.join(root, ICON),
-            "--add-data", f"{os.path.join(root, 'models')}{os.pathsep}models",
+            "--add-data", f"{os.path.join(root, 'game', 'models')}{os.pathsep}game/models",
+            "--add-data", f"{os.path.join(root, 'aikit', 'VERSION')}{os.pathsep}aikit",
             "--paths", root,
             "--distpath", os.path.join(root, DIST),
             "--workpath", os.path.join(root, BUILD, "work"),

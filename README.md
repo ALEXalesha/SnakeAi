@@ -10,11 +10,11 @@
 [![Release](https://img.shields.io/github/v/release/ALEXalesha/SnakeAi?color=16a34a)](https://github.com/ALEXalesha/SnakeAi/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-<img src="docs/preview_match.png" width="900" alt="A match: the green snake is the player, the orange one is the network">
+<img src="docs/preview_match_en.png" width="900" alt="A match: the green snake is the player, the orange one is the network">
 
 </div>
 
-> **The interface is in Russian**, and so is the long write-up - [README.ru.md](README.ru.md), which this file summarises.
+> **The interface speaks English and Russian** (Settings → Language, switches on the fly), with a dark and a light theme. The long write-up is in Russian - [README.ru.md](README.ru.md), which this file summarises.
 
 A 32x32 field, two snakes: green is yours (arrows or WASD), orange is a neural network. Hit a wall, a body or the other head and the round is over; the survivor scores, first to three wins.
 
@@ -26,7 +26,7 @@ Each cell is one of 12 classes. A body cell stores not "how many ticks it has le
 
 Three 3x3 convolutions (a 7x7 view around every cell) plus one long-range link, a global max over the field, which exists for a single rule: "the snake ate, so its tail stays", where the eating happens at the head and the tail may be across the field. Separate outputs give each cell's class, four events (who ate, who crashed) and a map of where food will appear; the new food is drawn from it. Field size is not baked in.
 
-The rules live only in a *teacher* (`teacher/`, plain code) used while training: it plays bot games and grows random snakes to make examples. Training ran on 8-16 cell fields (a convolution on 12x12 is seven times cheaper than on 32x32) mixed with 32x32 ones, on hand-written numpy layers. A single pass on held-out 32x32 fields matches the teacher cell for cell on 99.8% of moves - one slip per 500 moves, and a slip leaves a stray piece of snake on the field for good. So in the game the network looks at the field eight times, in four rotations and two mirror images in one batch, and adds the answers back in place: snake rules do not change under rotation (a test checks this on the teacher), the network's rare slips do not repeat across views, and the result is **100% of moves** on the same fields at 22 ms per move. Still only the network - just a permutation of cells and direction names. The teacher is not in the build, and a test checks the sources that neither the game nor the world network imports it.
+The rules live only in a *teacher* (`game/teacher/`, plain code) used while training: it plays bot games and grows random snakes to make examples. Training ran on 8-16 cell fields (a convolution on 12x12 is seven times cheaper than on 32x32) mixed with 32x32 ones, on hand-written numpy layers. A single pass on held-out 32x32 fields matches the teacher cell for cell on 99.8% of moves - one slip per 500 moves, and a slip leaves a stray piece of snake on the field for good. So in the game the network looks at the field eight times, in four rotations and two mirror images in one batch, and adds the answers back in place: snake rules do not change under rotation (a test checks this on the teacher), the network's rare slips do not repeat across views, and the result is **100% of moves** on the same fields at 22 ms per move. Still only the network - just a permutation of cells and direction names. The teacher is not in the build, and a test checks the sources that neither the game nor the world network imports it.
 
 ## The opponent
 
@@ -40,9 +40,9 @@ It sees a 15x15 window around its head, the direction to the nearest food and it
 
 ## The window
 
-<img src="docs/preview_menu.png" width="440" alt="Menu"> <img src="docs/preview_stats.png" width="440" alt="Statistics">
+<img src="docs/preview_menu_en.png" width="440" alt="Menu"> <img src="docs/preview_stats_en.png" width="440" alt="Statistics">
 
-Qt (PySide6): menu, match with a 3-2-1 countdown and pause, statistics with both networks' training curves, settings (speed, opponent level, volume, three palettes, a food-map overlay), synthesized sounds, and the window reopens where it was closed.
+Qt (PySide6): menu, match with a 3-2-1 countdown and pause, statistics with both networks' training curves, settings (speed, opponent level, volume, theme, language, three board palettes, a food-map overlay), synthesized sounds, and the window reopens where it was closed.
 
 ## Running
 
@@ -53,10 +53,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Retrain with `python -m train.world_train` and `python -m train.player_train`; build with `python build.py`.
+Retrain with `python -m game.train.world_train` and `python -m game.train.player_train`; build with `python build.py`.
+
+## Part of AiGameRoom
+
+Since 1.1.0 the game follows the [PythonAiGames contract](https://github.com/ALEXalesha/AiGameRoom): everything game-specific lives in `game/` (`core/` field encoding, start and match, `ai/` the world and opponent networks, `ui/` the Qt widget, `teacher/` and `train/` for training only, `models/` trained weights), and `game/__init__.py` exports `GAME_INFO` and `create_widget(ctx)`. The game has no main window of its own: `python main.py` puts the widget into a standalone window (`aikit.make_window`, same size and Quit button as before), and the AiGameRoom shell puts the very same widget into a tab. Theme, language and volume come from `ctx` and change on the fly; files are written only to `ctx.data_dir` (`%APPDATA%\SnakeAIGame\snake` for the standalone game). Settings and statistics of 1.0.x (`%LOCALAPPDATA%\SnakeAIGame`) are copied over on the first start; the old files stay. When the tab is hidden, `pause()` pauses the match; `shutdown()` stops the match timer. `aikit/` is a copy of the shared kit (numpy layers, context, standalone window, window state).
 
 ## Tests
 
-`python -m pytest -q` - 163 tests: layers against numeric gradients, every teacher rule, the trained world network against the teacher on held-out fields, long snakes and whole rounds, the opponent against the bot, and the window off-screen. Deliberately broken rules, gradients and key queues turn them red.
+`python -m pytest -q` - 244 tests (153 of the game and 91 of the shared `aikit` kit): every teacher rule, the trained world network against the teacher on held-out fields, long snakes and whole rounds, the opponent against the bot, the window off-screen, and the contract entry point - the widget made the way the shell makes it, theme and language switched on the fly, every screen in English with no Russian left, pause/resume/shutdown, files written only to the data folder, the 1.0.x data migration. Deliberately broken rules, gradients, key queues and eleven breakages of the widget (pause, resume, shutdown, language, theme, palette, volume, Quit) turn them red.
 
 Python, numpy, PySide6. MIT licence.

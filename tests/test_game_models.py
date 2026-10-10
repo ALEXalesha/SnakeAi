@@ -5,8 +5,8 @@ import types
 import numpy as np
 import pytest
 
-from game import models
-from world.net import WorldNet
+from game.ai import models
+from game.ai.world_net import WorldNet
 
 
 def test_missing_world_model_says_where(tmp_path):
@@ -43,9 +43,9 @@ def test_opponent_loads_through_player_net(tmp_path, monkeypatch):
             obj.path = path
             return obj
 
-    fake = types.ModuleType("player.net")
+    fake = types.ModuleType("game.ai.player_net")
     fake.PlayerNet = PlayerNet
-    monkeypatch.setitem(sys.modules, "player.net", fake)
+    monkeypatch.setitem(sys.modules, "game.ai.player_net", fake)
     (tmp_path / "player_strong.npz").write_bytes(b"")
     net = models.load_opponent("strong", tmp_path)
     assert str(net.path).endswith("player_strong.npz")

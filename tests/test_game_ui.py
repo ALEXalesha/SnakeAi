@@ -8,15 +8,16 @@ from PySide6.QtGui import QFontInfo, QFontMetricsF, QImage, QKeyEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLabel
 
-from game import match as M
-from game import store as st
-from game.app import MIN_HEIGHT, MIN_WIDTH, MainWindow
-from game.board import PALETTES, Board
-from game.screens import DRAW_SUBTEXT, ROUND_TEXT
-from game.sound import Sounds
+from game.core import match as M
+from game.ui import store as st
+from aikit.host import Context
+from game.ui.widget import MIN_HEIGHT, MIN_WIDTH, GameWidget
+from game.ui.board import PALETTES, Board
+from game.ui.screens import DRAW_SUBTEXT, ROUND_TEXT
+from game.ui.sound import Sounds
 from qt_app import PLAYER_PASSPORT, WORLD_PASSPORT, Const, FakeModels, qapp
-from world.cells import DOWN, LEFT, RIGHT, UP
-from world.start import start_field
+from game.core.cells import DOWN, LEFT, RIGHT, UP
+from game.core.start import start_field
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def make_window(tmp_path, app):
     made = []
 
     def make(models=None):
-        w = MainWindow(st.Store(tmp_path / "data"), models or FakeModels(),
+        w = GameWidget(Context(tmp_path / "data", "dark", "ru", 60), models or FakeModels(),
                        sounds=Sounds(enabled=False))
         made.append(w)
         return w
@@ -157,8 +158,10 @@ def test_settings_are_saved_at_once(make_window, tmp_path):
     s.palette.setCurrentIndex(1)
     s.food_map.setChecked(True)
     back = st.load_settings(tmp_path / "data" / "settings.json")
-    assert back == {"speed_ms": 200, "opponent": "strong", "volume": 25, "palette": 1,
+    assert back == {"speed_ms": 200, "opponent": "strong", "volume": 60, "palette": 1,
                     "show_food_map": True}
+    # громкость общая - в ctx (оттуда оболочке и окну отдельного запуска), звук игры следом
+    assert w.ctx.sound.volume == 25 and w.sounds.volume == 25
     assert w.match_screen.board.palette_index == 1
 
 
@@ -166,7 +169,7 @@ def test_settings_screen_shows_saved_values(tmp_path, app):
     s = st.Store(tmp_path)
     s.set("speed_ms", 90)
     s.set("opponent", "novice")
-    w = MainWindow(s, FakeModels(), sounds=Sounds(enabled=False))
+    w = GameWidget(Context(tmp_path, "dark", "ru", 60), FakeModels(), sounds=Sounds(enabled=False))
     w.show_settings()
     assert w.settings_screen.speed.value() == 90
     assert w.settings_screen.opponent.currentData() == "novice"
@@ -267,7 +270,7 @@ def test_text_fits_at_minimum_window_size(make_window, scale):
 def test_stats_show_win_rate_from_the_real_player_passport(make_window):
     """Столбец «выигрыш у бота» читает настоящий паспорт models/player.json (levels.*.vs_bot.win),
     а не выдуманный формат: в первом кадре статистики там стояли прочерки."""
-    real = json.loads((pathlib.Path(__file__).resolve().parents[1] / "models" / "player.json").read_text(encoding="utf-8"))
+    real = json.loads((pathlib.Path(__file__).resolve().parents[1] / "game" / "models" / "player.json").read_text(encoding="utf-8"))
     w = make_window(FakeModels(passports={"world": WORLD_PASSPORT, "player": real}))
     w.show_stats()
     for lv in ("novice", "medium", "strong"):

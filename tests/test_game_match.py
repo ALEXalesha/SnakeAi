@@ -1,9 +1,9 @@
 import numpy as np
 
-from game import match as M
+from game.core import match as M
 from qt_app import Const, RulesWorld, Steady
-from world.cells import DOWN, HEAD, LEFT, NONE, RIGHT, UP
-from world.net import Result
+from game.core.cells import DOWN, HEAD, LEFT, NONE, RIGHT, UP
+from game.ai.world_net import Result
 
 
 def new_match(world=None, opponent=None, target=3, speed=100):

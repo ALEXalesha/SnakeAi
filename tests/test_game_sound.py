@@ -3,7 +3,7 @@ import wave
 import numpy as np
 import pytest
 
-from game import sound
+from game.ui import sound
 
 CASES = [
     (sound.eat, sound.EAT_MS),

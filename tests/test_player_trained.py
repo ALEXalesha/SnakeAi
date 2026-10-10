@@ -5,10 +5,10 @@ import pathlib
 import numpy as np
 import pytest
 
-from player.net import PlayerNet
-from train.player_train import Bot, Random, evaluate
+from game.ai.player_net import PlayerNet
+from game.train.player_train import Bot, Random, evaluate
 
-MODELS = pathlib.Path(__file__).resolve().parents[1] / "models"
+MODELS = pathlib.Path(__file__).resolve().parents[1] / "game" / "models"
 LEVELS = ("novice", "medium", "strong")
 
 

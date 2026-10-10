@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from game import store
+from game.ui import store
 
 
 def test_settings_defaults_without_file(tmp_path):

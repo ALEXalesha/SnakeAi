@@ -4,14 +4,14 @@ import pathlib
 import numpy as np
 import pytest
 
-from teacher.data import grow, greedy_move, play, tensors
-from teacher.rules import step
-from train.world_train import evaluate
-from world.cells import EMPTY, FOOD, chain, length
-from world.net import WorldNet
-from world.start import start_field
+from game.teacher.data import grow, greedy_move, play, tensors
+from game.teacher.rules import step
+from game.train.world_train import evaluate
+from game.core.cells import EMPTY, FOOD, chain, length
+from game.ai.world_net import WorldNet
+from game.core.start import start_field
 
-MODEL = pathlib.Path(__file__).resolve().parents[1] / "models" / "world.npz"
+MODEL = pathlib.Path(__file__).resolve().parents[1] / "game" / "models" / "world.npz"
 
 
 @pytest.fixture(scope="module")

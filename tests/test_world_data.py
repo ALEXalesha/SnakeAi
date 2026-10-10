@@ -1,11 +1,11 @@
 import numpy as np
 
-from teacher.data import CHANGE_WEIGHT, SNAKE_WEIGHT, Sample, play, random_field, tensors
-from world.cells import EMPTY, FOOD, NONE, build, chain, tail
+from game.teacher.data import CHANGE_WEIGHT, SNAKE_WEIGHT, Sample, play, random_field, tensors
+from game.core.cells import EMPTY, FOOD, NONE, build, chain, tail
 
 
 def sample(field, a0=NONE, a1=NONE):
-    from teacher.rules import step
+    from game.teacher.rules import step
     o = step(field, a0, a1, np.random.default_rng(0))
     moved = field.copy() if o.field is None else o.moved
     food = -1 if o.food is None else o.food[0] * field.shape[1] + o.food[1]

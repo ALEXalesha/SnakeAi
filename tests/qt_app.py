@@ -6,9 +6,9 @@
 import numpy as np
 from PySide6.QtWidgets import QApplication
 
-from teacher import rules
-from world.cells import heading
-from world.net import Result
+from game.teacher import rules
+from game.core.cells import heading
+from game.ai.world_net import Result
 
 
 _APP = []      # держим приложение до конца прогона: без ссылки сборщик мусора убьёт его раньше окон
@@ -63,7 +63,7 @@ class FakeModels:
 
     def load_world(self):
         if self.missing:
-            from game.models import ModelMissing
+            from game.ai.models import ModelMissing
             raise ModelMissing(self.missing)
         return RulesWorld()
 

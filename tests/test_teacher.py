@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
-from teacher.rules import step
-from world.cells import (BODY, DOWN, EMPTY, FOOD, HEAD, LEFT, NONE, RIGHT, UP, build,
+from game.teacher.rules import step
+from game.core.cells import (BODY, DOWN, EMPTY, FOOD, HEAD, LEFT, NONE, RIGHT, UP, build,
                          chain, head, heading, length, tail)
-from world.start import start_field
+from game.core.start import start_field
 
 
 @pytest.fixture

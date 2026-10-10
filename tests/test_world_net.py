@@ -3,11 +3,11 @@ import re
 
 import numpy as np
 
-from nn import losses
-from world.cells import FOOD, NONE, RIGHT, UP, build
-from world.encode import IN_CHANNELS, encode
-from world.net import WorldNet
-from world.start import start_field
+from aikit.nn import losses
+from game.core.cells import FOOD, NONE, RIGHT, UP, build
+from game.core.encode import IN_CHANNELS, encode
+from game.ai.world_net import WorldNet
+from game.core.start import start_field
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -92,11 +92,14 @@ def test_save_load_gives_same_outputs(tmp_path):
 
 
 def test_game_and_world_never_import_the_teacher():
-    """Главное условие проекта: в игре нет кода правил."""
-    for folder in ("world", "game", "player", "nn"):
-        for path in (ROOT / folder).rglob("*.py"):
-            text = path.read_text(encoding="utf-8")
-            assert not re.search(r"^\s*(from|import)\s+teacher", text, re.M), path
-    main = ROOT / "main.py"
-    if main.exists():
-        assert "teacher" not in main.read_text(encoding="utf-8")
+    """Главное условие проекта: в игре нет кода правил. Учитель (game/teacher) нужен только
+    обучению (game/train) и тестам; правила поля, сети и окно его не импортируют."""
+    TEACHER = re.compile(r"^\s*(from|import)\s+(game\.)?teacher\b|^\s*from\s+game\s+import\s+(.*,\s*)?teacher\b", re.M)
+    files = [ROOT / "game" / "__init__.py", ROOT / "main.py"]
+    for folder in ("core", "ai", "ui"):
+        files += sorted((ROOT / "game" / folder).rglob("*.py"))
+    assert len(files) > 15
+    for path in files:
+        assert not TEACHER.search(path.read_text(encoding="utf-8")), path
+    assert TEACHER.search("from game.teacher.rules import step")       # сама проверка ловит импорт
+    assert TEACHER.search("from game.teacher import rules")

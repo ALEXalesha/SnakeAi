@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 
-from teacher.data import greedy_move, random_field
-from teacher.rules import step
-from world.cells import DOWN, LEFT, NONE, RIGHT, UP, build
-from world.net import WorldNet
-from world.symmetry import TRANSFORMS, VIEWS, action, apply, class_map, direction_perm, undo
+from game.teacher.data import greedy_move, random_field
+from game.teacher.rules import step
+from game.core.cells import DOWN, LEFT, NONE, RIGHT, UP, build
+from game.ai.world_net import WorldNet
+from game.core.symmetry import TRANSFORMS, VIEWS, action, apply, class_map, direction_perm, undo
 
 
 def test_quarter_turn_renames_directions():
