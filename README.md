@@ -14,6 +14,9 @@
 
 </div>
 
+[![Built with Claude Code](https://img.shields.io/badge/Built_with-Claude_Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+Code, tests and docs are written by Claude (Anthropic) in Claude Code. Ideas, testing and decisions - Alexey.
+
 > **The interface speaks English and Russian** (Settings → Language, switches on the fly), with a dark and a light theme. The long write-up is in Russian - [README.ru.md](README.ru.md), which this file summarises.
 
 A 32x32 field, two snakes: green is yours (arrows or WASD), orange is a neural network. Hit a wall, a body or the other head and the round is over; the survivor scores, first to three wins.

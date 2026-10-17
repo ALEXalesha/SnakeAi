@@ -14,6 +14,9 @@
 
 </div>
 
+[![Built with Claude Code](https://img.shields.io/badge/Built_with-Claude_Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+Код, тесты и документация этого проекта написаны Claude (Anthropic) в Claude Code. Идеи, проверка и решения - Алексей.
+
 Поле 32x32, две змейки: зелёная - ваша (стрелки или WASD), оранжевая - нейросеть. Врезался
 в стену, в тело или лбом в соперника - раунд окончен, выжившая змейка получает очко, матч
 до трёх очков.
