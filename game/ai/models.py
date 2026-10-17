@@ -50,25 +50,25 @@ def load_opponent(level, folder=None):
         raise ModelMissing(f"Не удалось прочитать models/{name}: {err}") from err
 
 
-def _load_net(cls_path, name, what, folder):
+def _load_net(cls, name, what, folder):
     path = os.path.join(_folder(folder), name)
     _need(path, f"{what} models/{name}")
-    module, cls = cls_path.rsplit(".", 1)
     try:
-        import importlib
-        return getattr(importlib.import_module(module), cls).load(path)
+        return cls.load(path)
     except Exception as err:  # noqa: BLE001
         raise ModelMissing(f"Не удалось прочитать models/{name}: {err}") from err
 
 
 def load_designer(folder=None):
     """Сеть-дизайнер окна (2.0). Нет - окно раскладывает код."""
-    return _load_net("game.design.designer_net.DesignerNet", "designer.npz", "сети-дизайнера", folder)
+    from game.design.designer_net import DesignerNet     # прямой импорт: его видит PyInstaller
+    return _load_net(DesignerNet, "designer.npz", "сети-дизайнера", folder)
 
 
 def load_painter(folder=None):
     """Сеть-художник клеток поля (2.0). Нет - клетки рисует код."""
-    return _load_net("game.design.painter_net.PainterNet", "painter.npz", "сети-художника", folder)
+    from game.design.painter_net import PainterNet
+    return _load_net(PainterNet, "painter.npz", "сети-художника", folder)
 
 
 def load_passport(name, folder=None):
