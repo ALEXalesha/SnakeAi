@@ -1,13 +1,14 @@
-"""Поле: рисует то, что выдала сеть-мир, - клетки, змеек по указателям, еду и (по желанию)
-полупрозрачную карту «где родится еда». Размер поля берётся из самого поля; клетки всегда
-квадратные, поле по центру виджета.
+"""Поле: рисует то, что выдала сеть-мир. Клетки - тайлы художника (с 2.0 - сеть-художник,
+game/design; запасной и учитель - кодовый художник game/design/tiles.py), поверх - рамка,
+полупрозрачная карта «где родится еда» (по желанию) и крупные надписи раунда кодом. Размер
+поля берётся из самого поля; клетки всегда квадратные, поле по центру виджета.
 """
 import numpy as np
-from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
+from PySide6.QtCore import QPoint, QRect, QRectF, Qt
+from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from game.core import cells
+from game.design.tiles import CodeTiles, compose, key_grid
 
 PALETTES = [
     {"name": "Ночь", "bg": "#10141b", "cell_a": "#171d27", "cell_b": "#141923",
@@ -49,7 +50,8 @@ class Board(QWidget):
         self.subtext = ""
         self.palette_index = 0
         self.overlay = None           # виджет паузы поверх поля (ставит экран матча)
-        self._bg_cache = (None, None)
+        self._cells_cache = (None, None, None, None)
+        self.tiles = CodeTiles()      # источник тайлов: tiles(палитра, ключи) -> {ключ: тайл}
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(320, 320)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
@@ -58,7 +60,12 @@ class Board(QWidget):
 
     def set_palette(self, index):
         self.palette_index = max(0, min(len(PALETTES) - 1, int(index)))
-        self._bg_cache = (None, None)
+        self.update()
+
+    def set_tiles(self, source):
+        """Кто рисует клетки: сеть-художник (game/design/runtime) или кодовый художник."""
+        self.tiles = source
+        self._cells_cache = (None, None, None, None)
         self.update()
 
     def set_state(self, field, food_probs=None, show_food_map=False, crashed=(False, False),
@@ -85,7 +92,6 @@ class Board(QWidget):
     def resizeEvent(self, event):
         if self.overlay is not None:
             self.overlay.setGeometry(self.rect())
-        self._bg_cache = (None, None)
         super().resizeEvent(event)
 
     # --- рисование ---------------------------------------------------------------------
@@ -97,57 +103,80 @@ class Board(QWidget):
         rect = self.field_rect()
         h, w = self.shape()
         cell = rect.width() / w
-        p.drawPixmap(0, 0, self._background(rect, pal, h, w))
-        if self.field is not None:
-            clip = QPainterPath()
-            clip.addRoundedRect(rect, cell * 0.6, cell * 0.6)
-            p.setClipPath(clip)
-            if self.show_food_map and self.food_probs is not None:
-                self._draw_food_map(p, rect, cell, pal)
-            self._draw_food(p, rect, cell, pal)
-            for s in (0, 1):
-                self._draw_snake(p, rect, cell, pal, s)
-            p.setClipping(False)
-        if self.text:
-            self._draw_text(p, rect, pal)
-        p.end()
-
-    def _background(self, rect, pal, h, w):
-        key = (self.width(), self.height(), self.palette_index, h, w, self.framed,
-               self.devicePixelRatioF())
-        if self._bg_cache[0] == key:
-            return self._bg_cache[1]
-        ratio = self.devicePixelRatioF()
-        pix = QPixmap(max(1, round(self.width() * ratio)), max(1, round(self.height() * ratio)))
-        pix.setDevicePixelRatio(ratio)
-        pix.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pix)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cell = rect.width() / w
         radius = cell * 0.6
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(pal["bg"]))
-        p.drawRoundedRect(rect, radius, radius)
-        clip = QPainterPath()
-        clip.addRoundedRect(rect, radius, radius)
-        p.setClipPath(clip)
-        a, b = QColor(pal["cell_a"]), QColor(pal["cell_b"])
-        for r in range(h):
-            for c in range(w):
-                p.fillRect(QRectF(rect.x() + c * cell, rect.y() + r * cell, cell + 0.5, cell + 0.5),
-                           a if (r + c) % 2 == 0 else b)
-        p.setClipping(False)
+        if self.field is not None:
+            # целые координаты: дробные включают медленный путь со сглаживанием
+            p.drawPixmap(QPoint(round(rect.x()), round(rect.y())), self._cells(rect, cell))
+        else:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(pal["bg"]))
+            p.drawRoundedRect(rect, radius, radius)
         if self.framed:
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.setPen(QPen(QColor(pal["border"]), 2))
             p.drawRoundedRect(rect.adjusted(-1, -1, 1, 1), radius + 1, radius + 1)
+        if self.field is not None:
+            if self.show_food_map and self.food_probs is not None:
+                clip = QPainterPath()
+                clip.addRoundedRect(rect, cell * 0.6, cell * 0.6)
+                p.setClipPath(clip)
+                self._draw_food_map(p, rect, cell, pal)
+                p.setClipping(False)
+        if self.text:
+            self._draw_text(p, rect, pal)
         p.end()
-        self._bg_cache = (key, pix)
-        return pix
 
-    @staticmethod
-    def _center(rect, cell, rc):
-        return QPointF(rect.x() + (rc[1] + 0.5) * cell, rect.y() + (rc[0] + 0.5) * cell)
+    def cells_image(self):
+        """Клетки поля из тайлов (H*24, W*24, 3) uint8 - что рисует художник."""
+        grid = key_grid(self.field, self.crashed)
+        return compose(self.tiles.tiles(self.palette_index, np.unique(grid)), grid)
+
+    def _cells(self, rect, cell):
+        """Клетки поля картинкой нужного размера со скруглёнными углами. Картинка живёт между
+        кадрами: после хода перерисовываются только клетки, у которых сменился ключ (обычно
+        3-6), целиком - при новом размере, палитре или художнике."""
+        ratio = self.devicePixelRatioF()
+        h, w = self.field.shape
+        base = (self.field.shape, self.palette_index, id(self.tiles), getattr(self.tiles, "version", 0),
+                round(rect.width(), 2), ratio)
+        state = (self.field.tobytes(), tuple(self.crashed))
+        cache = self._cells_cache
+        if cache[0] == base and cache[1] == state:
+            return cache[2]
+        grid = key_grid(self.field, self.crashed)
+        if cache[0] == base:
+            pix, prev = cache[2], cache[3]
+            todo = np.argwhere(grid != prev)
+        else:
+            side = max(1, round(rect.width() * ratio)), max(1, round(rect.height() * ratio))
+            pix = QPixmap(*side)
+            pix.fill(Qt.GlobalColor.transparent)
+            todo = np.argwhere(np.ones_like(grid, bool))
+        if len(todo):
+            tiles = self.tiles.tiles(self.palette_index, np.unique(grid[todo[:, 0], todo[:, 1]]))
+            px = cell * ratio
+            q = QPainter(pix)
+            q.setRenderHint(QPainter.RenderHint.Antialiasing)
+            q.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            clip = QPainterPath()
+            clip.addRoundedRect(QRectF(0, 0, pix.width(), pix.height()), px * 0.6, px * 0.6)
+            q.setClipPath(clip)
+            images = {}
+            xs = np.rint(np.arange(w + 1) * px).astype(int).tolist()
+            ys = np.rint(np.arange(h + 1) * px).astype(int).tolist()
+            for r, c in todo.tolist():
+                k = int(grid[r, c])
+                img = images.get(k)
+                if img is None:
+                    arr = np.ascontiguousarray(tiles[k])
+                    img = QImage(arr.data, arr.shape[1], arr.shape[0], arr.shape[1] * 3,
+                                 QImage.Format.Format_RGB888).copy()
+                    images[k] = img
+                q.drawImage(QRect(xs[c], ys[r], xs[c + 1] - xs[c], ys[r + 1] - ys[r]), img)
+            q.end()
+        pix.setDevicePixelRatio(ratio)
+        self._cells_cache = (base, state, pix, grid)
+        return pix
 
     def _draw_food_map(self, p, rect, cell, pal):
         probs = np.asarray(self.food_probs, dtype=np.float64)
@@ -162,76 +191,6 @@ class Board(QWidget):
             color = QColor(base)
             color.setAlpha(int(12 + 170 * level[r, c]))
             p.fillRect(QRectF(rect.x() + c * cell, rect.y() + r * cell, cell, cell), color)
-
-    def _draw_food(self, p, rect, cell, pal):
-        base = QColor(pal["food"])
-        for r, c in np.argwhere(self.field == cells.FOOD):
-            center = self._center(rect, cell, (r, c))
-            glow = QColor(base)
-            glow.setAlpha(55)
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(glow)
-            p.drawEllipse(center, cell * 0.55, cell * 0.55)
-            grad = QRadialGradient(center - QPointF(cell * 0.1, cell * 0.1), cell * 0.4)
-            grad.setColorAt(0, base.lighter(150))
-            grad.setColorAt(1, base)
-            p.setBrush(grad)
-            p.drawEllipse(center, cell * 0.33, cell * 0.33)
-            p.setBrush(QColor(255, 255, 255, 150))
-            p.drawEllipse(center - QPointF(cell * 0.11, cell * 0.12), cell * 0.08, cell * 0.08)
-
-    def _draw_snake(self, p, rect, cell, pal, s):
-        field = self.field
-        head = cells.head(field, s)
-        body_color, tail_color = QColor(pal["body"][s]), QColor(pal["tail"][s])
-        links = cells.chain(field, s)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        if links is not None and len(links) > 1:
-            n = len(links) - 1
-            for i, (a, b) in enumerate(zip(links, links[1:])):
-                t = (i + 1) / n
-                pen = QPen(_mix(tail_color, body_color, t ** 0.7), cell * (0.52 + 0.24 * t))
-                pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-                p.setPen(pen)
-                p.drawLine(self._center(rect, cell, a), self._center(rect, cell, b))
-        else:
-            # Змейка разорвана (сбой сети): рисуем каждую клетку тела к её указателю.
-            pen = QPen(body_color, cell * 0.66)
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            p.setPen(pen)
-            h, w = field.shape
-            for rc in cells.body_cells(field, s):
-                t = cells.pointer_target(field, rc, s)
-                a = self._center(rect, cell, rc)
-                if 0 <= t[0] < h and 0 <= t[1] < w:
-                    p.drawLine(a, self._center(rect, cell, t))
-                else:
-                    p.drawPoint(a)
-        if head is not None:
-            self._draw_head(p, rect, cell, pal, s, head)
-
-    def _draw_head(self, p, rect, cell, pal, s, head):
-        center = self._center(rect, cell, head)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(pal["head"][s]))
-        p.drawEllipse(center, cell * 0.47, cell * 0.47)
-        d = cells.heading(self.field, s)
-        dy, dx = cells.DELTA[d] if d is not None else (0, 1 if s == 0 else -1)
-        fwd = QPointF(dx, dy) * (cell * 0.16)
-        side = QPointF(-dy, dx) * (cell * 0.2)
-        for sign in (-1, 1):
-            eye = center + fwd + side * sign
-            p.setBrush(QColor(pal["eye"]))
-            p.drawEllipse(eye, cell * 0.1, cell * 0.1)
-        if self.crashed[s]:
-            pen = QPen(QColor(pal["crash"]), max(2.0, cell * 0.14))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            p.setPen(pen)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawEllipse(center, cell * 0.72, cell * 0.72)
-            k = cell * 0.28
-            p.drawLine(center + QPointF(-k, -k), center + QPointF(k, k))
-            p.drawLine(center + QPointF(-k, k), center + QPointF(k, -k))
 
     def caption_layout(self, rect):
         """Шрифты и места крупной надписи поверх поля (отсчёт, итог раунда): крупный шрифт,
