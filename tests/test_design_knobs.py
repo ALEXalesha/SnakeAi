@@ -29,9 +29,9 @@ def test_zero_noise_is_the_old_look(name):
 
 def test_knobs_ranges():
     lo, hi = K.knobs(-np.ones(4)), K.knobs(np.ones(4))
-    assert (lo.margin, hi.margin) == pytest.approx((0.75, 1.25))
-    assert (lo.spacing, hi.spacing) == pytest.approx((0.7, 1.3))
-    assert (lo.font, hi.font) == pytest.approx((0.95, 1.05))
+    assert (lo.margin, hi.margin) == pytest.approx((0.8, 1.2))
+    assert (lo.spacing, hi.spacing) == pytest.approx((0.85, 1.15))
+    assert (lo.font, hi.font) == pytest.approx((0.96, 1.04))
     assert (lo.radius, hi.radius) == pytest.approx((7, 13))
     assert (lo.hue, hi.hue) == pytest.approx((-14, 14))
     assert K.knobs(np.full(4, 5.0)) == hi                      # шум за пределами обрезается

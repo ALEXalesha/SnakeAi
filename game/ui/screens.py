@@ -358,7 +358,7 @@ class MatchScreen(Screen):
         panel.setObjectName("panel")
         panel.setFixedWidth(272)
         box = QVBoxLayout(panel)
-        box.setContentsMargins(20, 18, 20, 18)
+        box.setContentsMargins(20, 14, 20, 14)
         box.setSpacing(8)
         self.track(box)
         self.panel = panel

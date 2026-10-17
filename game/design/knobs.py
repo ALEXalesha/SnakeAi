@@ -29,7 +29,7 @@ def sample_z(rng):
 
 def knobs(z):
     z = np.clip(np.asarray(z, dtype=np.float64).reshape(Z_DIM), -1.0, 1.0)
-    return Knobs(margin=1 + 0.25 * z[0], spacing=1 + 0.3 * z[1], font=1 + 0.05 * z[2],
+    return Knobs(margin=1 + 0.2 * z[0], spacing=1 + 0.15 * z[1], font=1 + 0.04 * z[2],
                  radius=10 + 3 * z[1], hue=14 * z[3])
 
 
