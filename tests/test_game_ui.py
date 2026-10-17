@@ -309,3 +309,38 @@ def test_board_caption_is_modest_and_fits(make_window, size):
         assert fs.horizontalAdvance(sub) * 1.1 <= sub_rect.width(), (size, sub)
         assert fs.height() <= sub_rect.height() and sub_rect.bottom() <= band.bottom() + 1, (size, sub)
         assert rect.contains(band), (size, text)
+
+
+DESIGNER_PASSPORT = {"curve": [{"step": i * 1000, "loss": 1e-4 / (1 + i), "px": 20 / (1 + i)} for i in range(30)],
+                     "final": {"px_mean": 0.7, "px_max": 9.0, "laws_pass": 0.97}}
+PAINTER_PASSPORT = {"curve": [{"step": i * 1000, "loss": 1e-3 / (1 + i), "diff": 0.03 / (1 + i)} for i in range(16)],
+                    "final": {"diff_mean": 0.008, "diff_max": 0.04, "laws_pass": 1.0}, "limit": 0.06}
+
+
+def test_stats_show_design_card(make_window):
+    """2.0: «Статистика» показывает, насколько окно отличается от кодового и сколько раз
+    сработал запасной вариант, и графики обучения сетей-оформителей."""
+    w = make_window(FakeModels(passports={"world": WORLD_PASSPORT, "player": PLAYER_PASSPORT,
+                                          "designer": DESIGNER_PASSPORT, "painter": PAINTER_PASSPORT}))
+    w.journal.data.update({"layouts": 12, "layout_fallbacks": 3, "tile_sets": 4, "tile_fallbacks": 1,
+                           "deviation_sum": 30.0, "deviation_n": 10})
+    w.resize(1040, 720)
+    w.show_stats()
+    text = w.stats_screen.design_text()
+    assert "3.0</b> px" in text and ">12</b>" in text and ">3</b>" in text and ">4</b>" in text and ">1</b>" in text
+    assert "0.70" in text and "97%" in text and "0.8%" in text
+    assert w.stats_screen.visible_charts() == 6
+    w.ctx.set_lang("en")
+    w.show_stats()
+    assert "px per element" in w.stats_screen.design_text()
+    w.journal.data.update({"deviation_n": 0})
+    w.show_stats()
+    assert "not measured" in w.stats_screen.design_text()
+    rendered(w)
+
+
+def test_stats_design_card_without_anything(make_window):
+    w = make_window(FakeModels(design_missing=True))
+    w.stats_screen.journal = None
+    w.show_stats()
+    assert "код" in w.stats_screen.design_text()

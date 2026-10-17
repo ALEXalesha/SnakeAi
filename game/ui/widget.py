@@ -17,6 +17,8 @@ from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 
 from game.ai.models import ModelMissing, Models
+from game.design.journal import Journal
+from game.design.runtime import from_models
 from game.ui import store as st
 from game.ui import theme
 from game.ui.i18n import translator
@@ -53,9 +55,10 @@ def make_icon():
 
 
 class GameWidget(QWidget):
-    def __init__(self, ctx, models=None, sounds=None):
+    def __init__(self, ctx, models=None, sounds=None, design=None):
         super().__init__()
         self.ctx = ctx
+        self._design_arg = design
         self.store = st.Store(ctx.data_dir)
         self.models = models if models is not None else Models()
         self.sounds = sounds if sounds is not None else Sounds(
@@ -94,6 +97,23 @@ class GameWidget(QWidget):
         self.stats_screen.back.connect(self.show_menu)
         self.settings_screen.back.connect(self.show_menu)
         self.settings_screen.changed.connect(self._setting_changed)
+
+        # 2.0: окно раскладывает сеть-дизайнер, клетки рисует сеть-художник (game/design);
+        # design=False - всё кодом без шума (обучение дизайнера), объект - подмена в тестах
+        if design is None:
+            self.journal = Journal(ctx.data_dir)
+            design = from_models(self.models, self.journal)
+        else:
+            self.journal = design.journal if design else Journal(ctx.data_dir)
+        self.design = design or None
+        self.stats_screen.journal = self.journal
+        if self.design is not None:
+            k = self.design.knobs()
+            for screen in self.screens:
+                screen.set_knobs(k)
+                screen.design = self.design
+            for b in (self.match_screen.board, self.menu.logo, self.settings_screen.preview):
+                b.set_tiles(self.design.tiles)
 
         self.match_screen.board.set_palette(self.store.settings["palette"])
         self.apply_theme(ctx.theme)
@@ -135,6 +155,8 @@ class GameWidget(QWidget):
             self._fail(self.t("load_failed", err=err))
             return
         self.menu.show_message("")
+        if self.design is not None and hasattr(self.design.tiles, "new_match"):
+            self.design.tiles.new_match()       # новая партия - новая «рука» художника
         self.stack.setCurrentWidget(self.match_screen)
         self.match_screen.start(self._world, self._opponents[level], level)
 
@@ -146,6 +168,7 @@ class GameWidget(QWidget):
         """Окно отдельного запуска: показать «Выход» в меню; slot закрывает окно."""
         self._quit = slot
         self.menu.quit_button.setVisible(True)
+        self.menu.relayout()
 
     def quit(self):
         if self._quit is not None:
@@ -173,15 +196,25 @@ class GameWidget(QWidget):
             self.apply_theme(self.ctx.theme)
         elif what == "lang":
             self.t = translator(self.ctx.lang)
+            if self.design is not None:
+                # сначала стиль и язык дизайнера, потом тексты: раскладка под новый язык
+                # должна считаться уже с новыми текстами (иначе законы видят старые слова и
+                # раскладка навсегда уходит в запасной вариант - поймано самопроверкой 17.10)
+                self.apply_theme(self.ctx.theme, relayout=False)
             self.retranslate()
         if self.stack.currentWidget() is self.settings_screen:
             self.settings_screen.load()
 
-    def apply_theme(self, name):
-        self.setStyleSheet(theme.qss(name))
-        self.setPalette(theme.palette(name))
+    def apply_theme(self, name, relayout=True):
+        style = self.design.style(name, self.ctx.lang) if self.design is not None else None
+        self.style_now = style               # стиль окна сейчас (None - оформление 1.1)
+        self.setStyleSheet(theme.qss(name, style))
+        self.setPalette(theme.palette(name, style))
         for screen in self.screens:
             screen.set_theme(name)
+        current = self.stack.currentWidget()
+        if current is not None and relayout:
+            current.relayout()
 
     def retranslate(self):
         for screen in self.screens:
@@ -205,6 +238,7 @@ class GameWidget(QWidget):
         self.closed = True
         self.match_screen.stop()
         self.store.save_stats()
+        self.journal.save()
         return True
 
     def changeEvent(self, event):

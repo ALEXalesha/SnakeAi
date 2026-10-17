@@ -16,7 +16,7 @@ def gw(tmp_path):
     qapp()
     w = GameWidget(Context(tmp_path / "data", "dark", "ru", 60),
                    FakeModels(passports={"world": WORLD_PASSPORT, "player": PLAYER_PASSPORT}),
-                   sounds=Sounds(enabled=False))
+                   sounds=Sounds(enabled=False), design=False)
     w.resize(1040, 720)
     w.show()
     yield w

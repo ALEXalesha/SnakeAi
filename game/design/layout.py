@@ -59,9 +59,15 @@ def ai_mode(screen):
     return not screen.layout().isEnabled()
 
 
+# Обычные окна: развёрнутые на мониторах 1366x768, 1920x1080, 2560x1440 и 4K (минус панель
+# задач) - их сеть-дизайнер должна знать особенно хорошо.
+COMMON_SIZES = ((1366, 728), (1920, 1040), (2560, 1400), (3840, 2120), (1600, 900), (1280, 1000))
+
+
 def sample_sizes(rng, n):
     """Размеры окна для обучения и проверок: 10 % минимальных 820x600, 10 % обычных 1040x720,
-    остальные равномерно 820..2560 x 600..1440."""
+    10 % развёрнутых на обычных мониторах, остальные равномерно 820..3840 x 600..2160.
+    17.10 обучение до 2560x1440 давало мусор на 4K и половину запасных вариантов на 2560x1440."""
     out = []
     for _ in range(n):
         u = rng.random()
@@ -69,6 +75,8 @@ def sample_sizes(rng, n):
             out.append((820, 600))
         elif u < 0.2:
             out.append((1040, 720))
+        elif u < 0.3:
+            out.append(COMMON_SIZES[int(rng.integers(len(COMMON_SIZES)))])
         else:
-            out.append((int(rng.integers(820, 2561)), int(rng.integers(600, 1441))))
+            out.append((int(rng.integers(820, 3841)), int(rng.integers(600, 2161))))
     return out

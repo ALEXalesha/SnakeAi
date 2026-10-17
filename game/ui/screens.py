@@ -43,6 +43,37 @@ def label(text="", name=None, wrap=False):
     return lb
 
 
+class HintLabel(QLabel):
+    """Подсказка с переносом, которая держит место под lines строк, даже если текст короче.
+
+    Высота строки настроек тогда не прыгает, когда подсказка переносится на строку больше или
+    меньше: сеть-дизайнер не угадывает порог переноса, а учит ровную высоту (17.10 строки
+    настроек с подсказкой были 2/3 всех провалов законов). Предела по высоте нет - длиннее
+    lines строк подсказка растёт как обычная метка."""
+
+    def __init__(self, lines=3):
+        super().__init__("")
+        self.setObjectName("muted")
+        self.setWordWrap(True)
+        self.lines = lines
+
+    def _reserve(self):
+        return self.fontMetrics().lineSpacing() * self.lines
+
+    def heightForWidth(self, w):
+        return max(super().heightForWidth(w), self._reserve())
+
+    def minimumSizeHint(self):
+        size = super().minimumSizeHint()
+        size.setHeight(max(size.height(), self._reserve()))
+        return size
+
+    def sizeHint(self):
+        size = super().sizeHint()
+        size.setHeight(max(size.height(), self._reserve()))
+        return size
+
+
 def separator():
     line = QFrame()
     line.setObjectName("separator")
@@ -101,6 +132,8 @@ class Screen(QWidget):
     """Экран. Для сети-дизайнера (game/design) экран сообщает список своих элементов -
     elements(), раскладки, которые в режиме ИИ выключаются, - design_layouts(), и умеет
     менять поля и промежутки по ручкам кода - set_knobs()."""
+
+    NAME = ""                 # имя экрана для сети-дизайнера (game/design/designer_net.SCREENS)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -190,6 +223,7 @@ class Screen(QWidget):
 
 
 class MenuScreen(Screen):
+    NAME = "menu"
     play = Signal()
     stats = Signal()
     settings = Signal()
@@ -303,6 +337,7 @@ class Overlay(QWidget):
 
 
 class MatchScreen(Screen):
+    NAME = "match"
     to_menu = Signal()
     again = Signal()
 
@@ -625,6 +660,7 @@ ACCURACY_ROWS = (("field_symmetric", 0.995, True), ("field", 0.995, True), ("eve
 
 
 class StatsScreen(Screen):
+    NAME = "stats"
     back = Signal()
 
     def __init__(self, store, models, parent=None):
@@ -689,16 +725,32 @@ class StatsScreen(Screen):
         wv.addWidget(self.world_label)
         box.addWidget(world)
 
+        # 2.0: окно и поле делают сети - насколько окно отличается от кодового и сколько раз
+        # сработал запасной вариант (журнал game/design/journal.py)
+        design = card()
+        dv = QVBoxLayout(design)
+        dv.setContentsMargins(18, 14, 18, 14)
+        dv.addWidget(add(label("", "section"), "design_card", upper=True))
+        self.design_label = label("", wrap=True)
+        self.design_label.setTextFormat(Qt.TextFormat.RichText)
+        dv.addWidget(self.design_label)
+        box.addWidget(design)
+        self.journal = None            # ставит виджет игры
+        self._design = ({}, {}, None)
+
         charts = QGridLayout()
         charts.setSpacing(12)
         self.chart_world_loss = Chart("", "#ff8a3d", "", log_y=True)
         self.chart_world_field = Chart("", "#34d17c", "", percent=True)
         self.chart_imitation = Chart("", "#4fc3f7", "", percent=True)
         self.chart_rl = Chart("", "#c792ea", "")
+        self.chart_designer = Chart("", "#f7c948", "")
+        self.chart_painter = Chart("", "#ff7eb6", "", percent=True)
         self.charts = [self.chart_world_loss, self.chart_world_field, self.chart_imitation,
-                       self.chart_rl]
+                       self.chart_rl, self.chart_designer, self.chart_painter]
         self.chart_keys = (("chart_world_loss", "x_step"), ("chart_world_field", "x_step"),
-                           ("chart_imitation", "x_step"), ("chart_rl", "x_episode"))
+                           ("chart_imitation", "x_step"), ("chart_rl", "x_episode"),
+                           ("chart_designer", "x_step"), ("chart_painter", "x_step"))
         for i, c in enumerate(self.charts):
             charts.addWidget(c, i // 2, i % 2)
         box.addLayout(charts)
@@ -712,12 +764,14 @@ class StatsScreen(Screen):
         for c, (title, x) in zip(self.charts, self.chart_keys):
             c.set_text(t(title), t(x))
         self.world_label.setText(self._accuracy(self._final))
+        self.design_label.setText(self._design_text(*self._design))
 
     def set_theme(self, name):
         super().set_theme(name)
         for c in self.charts:
             c.set_theme(name)
         self.world_label.setText(self._accuracy(self._final))
+        self.design_label.setText(self._design_text(*self._design))
 
     def refresh(self):
         s = self.store.stats
@@ -744,7 +798,47 @@ class StatsScreen(Screen):
         self.chart_imitation.set_points(points_from(player.get("imitation_curve"), "step",
                                                     "accuracy"))
         self.chart_rl.set_points(points_from(player.get("rl_curve"), "episode", "reward"))
+        designer = self.models.load_passport("designer") or {}
+        painter = self.models.load_passport("painter") or {}
+        self.chart_designer.set_points(points_from(designer.get("curve"), "step", "px"))
+        self.chart_painter.set_points(points_from(painter.get("curve"), "step", "diff"))
+        self._design = (designer.get("final") if isinstance(designer.get("final"), dict) else {},
+                        painter.get("final") if isinstance(painter.get("final"), dict) else {},
+                        self.journal.data if self.journal is not None else None)
+        self.design_label.setText(self._design_text(*self._design))
         self.no_charts.setVisible(self.visible_charts() == 0)
+
+    def _design_text(self, designer, painter, journal):
+        t, c = self.t, self.colors
+
+        def num(v):
+            return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+        def b(text, good=True):
+            return f"<b style='color:{c['good'] if good else c['mid']}'>{text}</b>"
+        lines = []
+        if journal is not None:
+            n = journal.get("deviation_n", 0)
+            if n:
+                lines.append(t("design_deviation", px=b(f"{journal['deviation_sum'] / n:.1f}")))
+            else:
+                lines.append(t("design_deviation_none"))
+            lines.append(t("design_layouts", net=b(journal.get("layouts", 0)),
+                           code=b(journal.get("layout_fallbacks", 0), journal.get("layout_fallbacks", 0) == 0)))
+            lines.append(t("design_tiles", net=b(journal.get("tile_sets", 0)),
+                           code=b(journal.get("tile_fallbacks", 0), journal.get("tile_fallbacks", 0) == 0)))
+        if num(designer.get("px_mean")) and num(designer.get("laws_pass")):
+            lines.append(t("design_trained", px=b(f"{designer['px_mean']:.2f}"),
+                           laws=b(pct(designer["laws_pass"], 0), designer["laws_pass"] >= 0.95)))
+        if num(painter.get("diff_mean")) and num(painter.get("laws_pass")):
+            lines.append(t("painter_trained", diff=b(pct(painter["diff_mean"])),
+                           laws=b(pct(painter["laws_pass"], 0), painter["laws_pass"] >= 0.95)))
+        if not lines:
+            return f"<span style='color:{c['muted']}'>{t('design_none')}</span>"
+        return "<br>".join(lines)
+
+    def design_text(self):
+        return self.design_label.text()
 
     def _accuracy(self, final):
         t, c = self.t, self.colors
@@ -782,6 +876,7 @@ class StatsScreen(Screen):
 
 
 class SettingsScreen(Screen):
+    NAME = "settings"
     back = Signal()
     changed = Signal(str)
 
@@ -883,7 +978,7 @@ class SettingsScreen(Screen):
         if extra is not None:
             col.addWidget(extra, 0, Qt.AlignmentFlag.AlignLeft)
         if hint_key:
-            col.addWidget(self.texts.add(label("", "muted", wrap=True), hint_key))
+            col.addWidget(self.texts.add(HintLabel(), hint_key))
         box.addWidget(row)
         return row
 

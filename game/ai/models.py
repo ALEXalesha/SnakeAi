@@ -50,6 +50,27 @@ def load_opponent(level, folder=None):
         raise ModelMissing(f"Не удалось прочитать models/{name}: {err}") from err
 
 
+def _load_net(cls_path, name, what, folder):
+    path = os.path.join(_folder(folder), name)
+    _need(path, f"{what} models/{name}")
+    module, cls = cls_path.rsplit(".", 1)
+    try:
+        import importlib
+        return getattr(importlib.import_module(module), cls).load(path)
+    except Exception as err:  # noqa: BLE001
+        raise ModelMissing(f"Не удалось прочитать models/{name}: {err}") from err
+
+
+def load_designer(folder=None):
+    """Сеть-дизайнер окна (2.0). Нет - окно раскладывает код."""
+    return _load_net("game.design.designer_net.DesignerNet", "designer.npz", "сети-дизайнера", folder)
+
+
+def load_painter(folder=None):
+    """Сеть-художник клеток поля (2.0). Нет - клетки рисует код."""
+    return _load_net("game.design.painter_net.PainterNet", "painter.npz", "сети-художника", folder)
+
+
 def load_passport(name, folder=None):
     """models/<name>.json как словарь; нет файла, битый или не словарь - None."""
     path = os.path.join(_folder(folder), f"{name}.json")
@@ -72,6 +93,12 @@ class Models:
 
     def load_opponent(self, level):
         return load_opponent(level, self.folder)
+
+    def load_designer(self):
+        return load_designer(self.folder)
+
+    def load_painter(self):
+        return load_painter(self.folder)
 
     def load_passport(self, name):
         return load_passport(name, self.folder)

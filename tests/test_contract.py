@@ -102,15 +102,15 @@ def test_standalone_window_shows_quit_and_it_closes_the_window(app):
 
 def test_theme_changes_on_the_fly(gw, ctx):
     ctx.set_theme("light")
-    light = theme.tokens("light")
+    light = theme.tokens("light", gw.style_now)      # акцентные цвета - от сети-дизайнера
     assert light["bg"] in gw.styleSheet()
     assert gw.palette().color(gw.palette().ColorRole.Highlight).name() == light["selection"]   # Fusion рисует по палитре
-    assert gw.stats_screen.chart_rl.colors == light
+    assert gw.stats_screen.chart_rl.colors == theme.tokens("light")
     corner = gw.grab().toImage().pixelColor(3, gw.height() - 3)
     assert corner.name() == light["bg"]
     ctx.set_theme("dark")
     assert theme.tokens("dark")["bg"] in gw.styleSheet()
-    assert gw.palette().color(gw.palette().ColorRole.Highlight).name() == theme.tokens("dark")["selection"]
+    assert gw.palette().color(gw.palette().ColorRole.Highlight).name() ==         theme.tokens("dark", gw.style_now)["selection"]
 
 
 def visible_texts(widget):

@@ -10,7 +10,9 @@ from PySide6.QtWidgets import QPushButton
 
 from game.design.knobs import contrast
 
-SIZE_SLACK = 1          # px: недобор размера до потребности содержимого, который не виден
+SIZE_SLACK = 0          # px: недобор размера до потребности содержимого (1 px уже резал
+                        # нижнюю строку подсказки при шрифте +10%: закон test_text_fits)
+MAX_SLACK = 6           # px: лишнее сверх предела виджета Qt срезает сам, элемент лишь сдвинут
 MIN_BUTTON_H = 28
 
 
@@ -63,7 +65,7 @@ def check_layout(screen, rects):
         if w < nw - SIZE_SLACK or h < nh - SIZE_SLACK:
             bad.append(f"{name}: мало места {w}x{h}, нужно {nw}x{nh}")
         mx = widget.maximumSize()
-        if w > mx.width() + SIZE_SLACK or h > mx.height() + SIZE_SLACK:
+        if w > mx.width() + MAX_SLACK or h > mx.height() + MAX_SLACK:
             bad.append(f"{name}: больше предела {w}x{h} > {mx.width()}x{mx.height()}")
         if isinstance(widget, QPushButton) and h < MIN_BUTTON_H:
             bad.append(f"{name}: кнопка ниже {MIN_BUTTON_H} px")

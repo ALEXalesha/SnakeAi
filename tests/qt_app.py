@@ -53,13 +53,27 @@ class Steady:
 
 
 class FakeModels:
-    """Подмена game.models для окна: мир - правила, соперник - постоянный ход."""
+    """Подмена game.models для окна: мир - правила, соперник - постоянный ход. Сети-оформители
+    (дизайнер и художник) - настоящие из game/models; design_missing=True - их нет."""
 
-    def __init__(self, opponent=None, passports=None, missing=None):
+    def __init__(self, opponent=None, passports=None, missing=None, design_missing=False):
         self.opponent = opponent if opponent is not None else Const(1)   # вниз - в стену
         self.passports = passports or {}
         self.missing = missing
+        self.design_missing = design_missing
         self.levels = []
+
+    def load_designer(self):
+        from game.ai.models import ModelMissing, load_designer
+        if self.design_missing:
+            raise ModelMissing("нет сети-дизайнера (подмена)")
+        return load_designer()
+
+    def load_painter(self):
+        from game.ai.models import ModelMissing, load_painter
+        if self.design_missing:
+            raise ModelMissing("нет сети-художника (подмена)")
+        return load_painter()
 
     def load_world(self):
         if self.missing:

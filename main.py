@@ -153,6 +153,25 @@ def selftest(out_path, max_steps=1500):
         for show in (gw.show_menu, gw.show_stats, gw.show_settings):
             show()
             ok = ok and not win.grab().isNull()
+    # 2.0: окно и поле от сетей-оформителей - что разложила сеть, что код
+    from game.design import layout as L
+    from game.design.laws import check_layout
+    gw.play()
+    gw.match_screen.board.cells_image()
+    sources, bad = [], []
+    for screen, show in ((gw.menu, gw.show_menu), (gw.stats_screen, gw.show_stats),
+                         (gw.settings_screen, gw.show_settings), (gw.match_screen, gw.play)):
+        show()
+        last = gw.design.last.get(screen.NAME, {}) if gw.design else {}
+        sources.append(f"{screen.NAME} - {'сеть' if last.get('source') == 'net' else 'код'}")
+        bad += check_layout(screen, L.placed(screen))
+    j = gw.journal.data
+    lines.append("раскладка: " + ", ".join(sources))
+    lines.append(f"законы окна: {'все прошли' if not bad else bad[0]}; запасной вариант окна {j['layout_fallbacks']}, "
+                 f"поля {j['tile_fallbacks']}; наборов клеток сети {j['tile_sets']}")
+    if j["last"]:
+        lines.append(f"последний запасной вариант: {j['last'][-1]['what']} - {j['last'][-1]['why']}")
+    ok = ok and not bad and gw.design is not None and gw.design.designer is not None and j["tile_sets"] >= 1
     ok = ok and gw.shutdown() is True
     win.close()
     lines.append("окно: меню, статистика, настройки нарисованы по-русски и по-английски")

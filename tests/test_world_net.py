@@ -96,7 +96,7 @@ def test_game_and_world_never_import_the_teacher():
     обучению (game/train) и тестам; правила поля, сети и окно его не импортируют."""
     TEACHER = re.compile(r"^\s*(from|import)\s+(game\.)?teacher\b|^\s*from\s+game\s+import\s+(.*,\s*)?teacher\b", re.M)
     files = [ROOT / "game" / "__init__.py", ROOT / "main.py"]
-    for folder in ("core", "ai", "ui"):
+    for folder in ("core", "ai", "ui", "design"):
         files += sorted((ROOT / "game" / folder).rglob("*.py"))
     assert len(files) > 15
     for path in files:
