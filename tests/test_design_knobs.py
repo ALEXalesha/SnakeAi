@@ -1,7 +1,10 @@
-"""Шум оформления: z = 0 - ровно окно 1.1.0, любой шум сохраняет контраст текста."""
+"""Шум оформления: z = 0 - ровно основной вид окна (без шума), любой шум сохраняет контраст текста.
+
+До 2.1 основной вид был видом 1.1.0 (сверка с theme.py из истории git); с 2.1 у змейки свой вид
+«террариум» (правило автора 17.10: меню, настройки и статистика у каждой игры свои), и z = 0 -
+этот вид: таблица стилей без шума та же, что у стиля кода с нулевым шумом."""
 import colorsys
 import itertools
-import subprocess
 
 import numpy as np
 import pytest
@@ -9,22 +12,12 @@ import pytest
 from game.design import knobs as K
 from game.ui import theme
 
-OLD_THEME = subprocess.run(["git", "show", "52947a9:game/ui/theme.py"], capture_output=True, text=True,
-                           encoding="utf-8").stdout
 
-
-def old_qss(name):
-    ns = {}
-    exec(compile(OLD_THEME, "old_theme", "exec"), ns)          # noqa: S102 - свой файл из истории
-    return ns["qss"](name)
-
-
-@pytest.mark.skipif(not OLD_THEME, reason="нет истории git")
 @pytest.mark.parametrize("name", theme.THEMES)
-def test_zero_noise_is_the_old_look(name):
+def test_zero_noise_is_the_base_look(name):
     zero = np.zeros(K.Z_DIM)
-    assert theme.qss(name) == old_qss(name)
-    assert theme.qss(name, K.code_style(theme.tokens(name), zero)) == old_qss(name)
+    assert theme.qss(name, K.code_style(theme.tokens(name), zero)) == theme.qss(name)
+    assert K.code_style(theme.tokens(name), zero)["colors"]["accent"] == theme.TOKENS[name]["accent"]
 
 
 def test_knobs_ranges():

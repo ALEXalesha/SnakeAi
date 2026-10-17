@@ -97,7 +97,10 @@ def test_designer_target_and_rects_round_trip():
 def test_designer_inputs():
     x = D.inputs("settings", 1040, 720, "light", "en", (1, 0), np.full(4, 0.25))
     assert x.shape == (D.IN,) and x[0] == pytest.approx(1.04) and x[2 + 3] == 1 and x[7] == 1 and x[9] == 1
-    assert x[10] == 1 and x[11] == 0 and np.all(x[12:] == 0.25)
+    assert x[10] == 1 and x[11] == 0 and np.all(x[12:16] == 0.25)
+    assert x[16] == 0                                  # масштаб окна 1 - 1
+    big = D.inputs("menu", 3840, 2120, "dark", "ru", (0, 0), np.zeros(4))
+    assert big[16] == pytest.approx(1.0)               # 4K - масштаб 2 (вход сети, 2.1)
 
 
 def test_tile_law_sees_a_tile_of_another_kind():

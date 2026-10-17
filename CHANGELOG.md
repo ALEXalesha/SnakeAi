@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+Its own look, «terrarium» (author's rule of 17.10: the menu, settings and statistics of every game
+have their own style, on the level of Minesweeper, Sea Battle and BlockDrop), and the findings of
+the independent check of 17.10.
+
+- **Main screen**: a living arena of board cells fills the background, two snakes (yours and the
+  network's) crawl around it and eat a pulsing food; the middle under the menu is dimmed. It ticks
+  only while the menu is on screen (`aikit.menu.Backdrop`; paused in a hidden shell tab). The
+  title is drawn in snake skin (Candara, gradient, dark outline), «Play» is a snake head with eyes.
+- **Settings and statistics**: a still terrarium background (board cells fading to the corner, a
+  shed skin along the bottom), translucent cards, section headings in Cascadia Code, numbers in
+  Cascadia Code. New palette: moss and pine at night instead of blue-grey, a garden by day.
+- **The designer network learned the new look honestly**: the coded layouts are its teacher, so it
+  was retrained (19 200 layouts, 50 000 steps, 21 min). The window scale became its input:
+  0.93 px mean error, 98.6% of 1200 held-out layouts pass the laws (2.0: 0.67 px and 99.8%); the
+  rest falls back to the coded layout as before.
+- **4K without Windows scaling is no longer tiny** (check 17.10): fonts, button padding, corners
+  and fixed sizes (menu buttons, match panel, charts) grow with the window in 0.05 steps up to x2
+  (`game/design/knobs.scale_for`). Steps of 0.25 made layouts jump and the designer passed only
+  57% of the laws, 0.05 without the scale input - 83%.
+- **The «Food map» checkbox shows its state** (check 17.10: on and off looked the same): own
+  indicator, filled with the accent when on.
+- **An abandoned match is a loss** (check 17.10: rounds were recorded and the match was not,
+  «1 match, 4 rounds» at 0:3), as in Rock-Paper-Scissors 1.0.4: leaving to the menu or closing the
+  window after a played round counts the match as lost; the pause card says so. Before the first
+  round nothing is counted.
+- aikit 0.1.0 -> 0.4.0 (`aikit.skin` - style of the game's pages, laws `page_problems`).
+- Tests: `tests/test_look.py` - 22 laws; 8 new mutants caught.
+
 ## 2.0.0 - 2026-10-17
 
 The rules were already a network; now the window and the board picture are too. The coded

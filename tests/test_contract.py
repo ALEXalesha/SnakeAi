@@ -13,6 +13,7 @@ import time
 
 import pytest
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QAbstractButton, QComboBox, QLabel, QMainWindow, QWidget
 
@@ -106,8 +107,13 @@ def test_theme_changes_on_the_fly(gw, ctx):
     assert light["bg"] in gw.styleSheet()
     assert gw.palette().color(gw.palette().ColorRole.Highlight).name() == light["selection"]   # Fusion рисует по палитре
     assert gw.stats_screen.chart_rl.colors == theme.tokens("light")
+    gw.menu.set_time(0.0)                            # 2.1: под меню - арена-террариум, кадр замер
     corner = gw.grab().toImage().pixelColor(3, gw.height() - 3)
-    assert corner.name() == light["bg"]
+    want = QColor(light["bg"])
+    # угол - клетка арены: светлая, близко к фону темы (не тёмная клетка прежней темы)
+    assert max(abs(corner.red() - want.red()), abs(corner.green() - want.green()),
+               abs(corner.blue() - want.blue())) < 24, corner.name()
+    gw.menu.set_time(None)
     ctx.set_theme("dark")
     assert theme.tokens("dark")["bg"] in gw.styleSheet()
     assert gw.palette().color(gw.palette().ColorRole.Highlight).name() ==         theme.tokens("dark", gw.style_now)["selection"]

@@ -30,7 +30,8 @@ def screens(w):
 
 def set_style(w, th, z):
     style = code_style(theme.tokens(th), z)
-    w.setStyleSheet(theme.qss(th, style))
+    w.style_now, w.theme_name = style, th
+    w.restyle()                                   # масштаб окна ставит сам виджет при resize
     k = knobs(z)
     for s in w.screens:
         s.set_knobs(k)
