@@ -35,36 +35,50 @@ TOKENS = {
 BG, CARD, LINE, TEXT, MUTED, ACCENT = (TOKENS["dark"][k] for k in ("bg", "card", "line", "text", "muted", "accent"))
 
 
-def tokens(name):
-    return TOKENS[name if name in TOKENS else "dark"]
+def tokens(name, style=None):
+    """Цвета темы; style (game/design/knobs.code_style или ответ сети-дизайнера) подменяет
+    акцентные цвета."""
+    t = dict(TOKENS[name if name in TOKENS else "dark"])
+    if style:
+        t.update(style.get("colors", {}))
+    return t
 
 
-def qss(name="dark"):
-    t = tokens(name)
+def _pt(v, k):
+    return f"{v * k:.4g}pt"
+
+
+def qss(name="dark", style=None):
+    """QSS виджета. style: font - множитель шрифтов, radius - скругление кнопок (карточки +4),
+    colors - акцентные цвета. style=None - оформление 1.1.0."""
+    t = tokens(name, style)
+    f = float(style["font"]) if style else 1.0
+    r = float(style["radius"]) if style else 10.0
+    rb, rc, rk = f"{r:.3g}px", f"{max(r - 2, 2):.3g}px", f"{r + 4:.3g}px"
     return f"""
 QMainWindow, QWidget#gameRoot, QStackedWidget, QWidget#screen, QWidget#scrollBody {{ background: {t['bg']}; }}
-QWidget {{ color: {t['text']}; font-family: "Segoe UI", "Noto Sans", sans-serif; font-size: 10.5pt; }}
+QWidget {{ color: {t['text']}; font-family: "Segoe UI", "Noto Sans", sans-serif; font-size: {_pt(10.5, f)}; }}
 QToolTip {{ background: {t['card']}; color: {t['text']}; border: 1px solid {t['line']}; padding: 4px 6px; }}
 
-QLabel#title {{ font-size: 36pt; font-weight: 700; color: {t['title']}; }}
-QLabel#screenTitle {{ font-size: 20pt; font-weight: 600; }}
+QLabel#title {{ font-size: {_pt(36, f)}; font-weight: 700; color: {t['title']}; }}
+QLabel#screenTitle {{ font-size: {_pt(20, f)}; font-weight: 600; }}
 QLabel#subtitle, QLabel#muted {{ color: {t['muted']}; }}
-QLabel#section {{ color: {t['muted']}; font-size: 9pt; font-weight: 600; letter-spacing: 1px; }}
-QLabel#big {{ font-size: 30pt; font-weight: 700; }}
-QLabel#cardValue {{ font-size: 22pt; font-weight: 700; }}
+QLabel#section {{ color: {t['muted']}; font-size: {_pt(9, f)}; font-weight: 600; letter-spacing: 1px; }}
+QLabel#big {{ font-size: {_pt(30, f)}; font-weight: 700; }}
+QLabel#cardValue {{ font-size: {_pt(22, f)}; font-weight: 700; }}
 QLabel#value {{ font-weight: 600; }}
 QLabel#warning {{ background: {t['warn_bg']}; color: {t['warn_text']}; border: 1px solid {t['warn_border']};
-                 border-radius: 10px; padding: 10px 14px; }}
-QLabel#overlayTitle {{ font-size: 26pt; font-weight: 700; }}
+                 border-radius: {rb}; padding: 10px 14px; }}
+QLabel#overlayTitle {{ font-size: {_pt(26, f)}; font-weight: 700; }}
 
 QFrame#panel, QFrame#card, QFrame#overlayCard {{ background: {t['card']}; border: 1px solid {t['line']};
-                                               border-radius: 14px; }}
+                                               border-radius: {rk}; }}
 QFrame#panel QLabel, QFrame#card QLabel, QFrame#overlayCard QLabel {{ background: transparent;
                                                                     border: none; }}
 QFrame#separator {{ background: {t['line']}; border: none; max-height: 1px; min-height: 1px; }}
 
-QPushButton {{ background: {t['button']}; border: 1px solid {t['button_border']}; border-radius: 10px;
-              padding: 10px 18px; font-size: 11pt; }}
+QPushButton {{ background: {t['button']}; border: 1px solid {t['button_border']}; border-radius: {rb};
+              padding: 10px 18px; font-size: {_pt(11, f)}; }}
 QPushButton:hover {{ background: {t['button_hover']}; border-color: {t['button_hover_border']}; }}
 QPushButton:pressed {{ background: {t['button_pressed']}; }}
 QPushButton:focus {{ border-color: {t['focus']}; }}
@@ -80,7 +94,7 @@ QSlider::handle:horizontal {{ width: 18px; height: 18px; margin: -7px 0; border-
                              background: {t['text']}; }}
 QSlider::handle:horizontal:hover {{ background: {t['handle_hover']}; }}
 
-QComboBox {{ background: {t['button']}; border: 1px solid {t['button_border']}; border-radius: 8px;
+QComboBox {{ background: {t['button']}; border: 1px solid {t['button_border']}; border-radius: {rc};
             padding: 6px 12px; min-width: 150px; }}
 QComboBox:hover {{ border-color: {t['button_hover_border']}; }}
 QComboBox::drop-down {{ border: none; width: 24px; }}
@@ -105,9 +119,9 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QSS = qss("dark")
 
 
-def palette(name="dark"):
+def palette(name="dark", style=None):
     """Палитра Qt: у стиля Fusion по ней рисуется всё, что не описано в QSS."""
-    t = tokens(name)
+    t = tokens(name, style)
     p = QPalette()
     roles = {
         QPalette.ColorRole.Window: t["bg"], QPalette.ColorRole.WindowText: t["text"],
