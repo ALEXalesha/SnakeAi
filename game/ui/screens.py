@@ -7,7 +7,7 @@ import numpy as np
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
-                               QProgressBar, QPushButton, QScrollArea, QSlider,
+                               QProgressBar, QPushButton, QScrollArea, QSizePolicy, QSlider,
                                QVBoxLayout, QWidget)
 
 from game.core import match as M
@@ -98,26 +98,89 @@ def pct(v, digits=1):
 
 
 class Screen(QWidget):
+    """Экран. Для сети-дизайнера (game/design) экран сообщает список своих элементов -
+    elements(), раскладки, которые в режиме ИИ выключаются, - design_layouts(), и умеет
+    менять поля и промежутки по ручкам кода - set_knobs()."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("screen")
         self.t = translator("ru")
         self.colors = theme.tokens("dark")
         self.texts = Texts()
+        self._tracked = []        # (раскладка, базовые поля, базовый промежуток)
+        self._gaps = []           # (раскладка, распорка, базовый размер)
+        self.design = None        # game/design/runtime.AiDesign или None - раскладка кода
+
+    def track(self, layout):
+        """Запомнить поля и промежуток раскладки как базовые (z = 0) для set_knobs."""
+        m = layout.contentsMargins()
+        self._tracked.append((layout, (m.left(), m.top(), m.right(), m.bottom()), layout.spacing()))
+        return layout
+
+    def gap(self, layout, px):
+        """addSpacing, который тоже растягивается ручкой промежутков."""
+        layout.addSpacing(px)
+        self._gaps.append((layout, layout.itemAt(layout.count() - 1).spacerItem(), px))
+
+    def set_knobs(self, k):
+        """Поля - на k.margin, промежутки и распорки - на k.spacing (game/design/knobs.py)."""
+        for lay, m, sp in self._tracked:
+            lay.setContentsMargins(*(round(v * k.margin) for v in m))
+            if sp >= 0:
+                lay.setSpacing(round(sp * k.spacing))
+        for lay, item, px in self._gaps:
+            v = round(px * k.spacing)
+            if isinstance(lay, QHBoxLayout):
+                item.changeSize(v, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+            else:
+                item.changeSize(0, v, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            lay.invalidate()
+
+    def elements(self):
+        """[(имя, виджет, имя родителя или None)] - что раскладывает сеть-дизайнер; родитель
+        всегда раньше своих детей."""
+        return []
+
+    def design_layouts(self):
+        """Раскладки, которые в режиме ИИ выключены: их работу делает сеть-дизайнер."""
+        return [self.layout()]
+
+    def flags(self):
+        """Что из необязательного видно (меню: «Выход», сообщение) - вход сети-дизайнера."""
+        return (0, 0)
 
     def header(self, title_key, back):
         """Заголовок экрана с кнопкой «В меню» справа."""
         row = QHBoxLayout()
-        row.addWidget(self.texts.add(label("", "screenTitle"), title_key))
+        self.title_label = self.texts.add(label("", "screenTitle"), title_key)
+        row.addWidget(self.title_label)
         row.addStretch(1)
         b = self.texts.add(button(), "to_menu")
         b.clicked.connect(back)
         row.addWidget(b)
+        self.back_button = b
         return row
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.design is not None:
+            self.design.layout(self)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self.design is not None:
+            self.design.layout(self)
+
+    def relayout(self):
+        """Видимость или тексты поменялись - раскладка заново (у кода - сама Qt)."""
+        if self.design is not None and self.isVisible():
+            self.design.layout(self)
 
     def retranslate(self, t):
         self.t = t
         self.texts.apply(t)
+        self.relayout()
 
     def set_theme(self, name):
         self.colors = theme.tokens(name)
@@ -137,21 +200,25 @@ class MenuScreen(Screen):
         self._settings = None
         outer = QVBoxLayout(self)
         outer.setContentsMargins(32, 32, 32, 24)
+        self.track(outer)
         outer.addStretch(3)
 
         self.logo = mini_board()
         outer.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignHCenter)
-        outer.addSpacing(12)
+        self.gap(outer, 12)
         title = self.texts.add(label("", "title"), "title")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         outer.addWidget(title)
+        self.title_label = title
         sub = self.texts.add(label("", "subtitle"), "subtitle")
         sub.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         outer.addWidget(sub)
-        outer.addSpacing(26)
+        self.subtitle = sub
+        self.gap(outer, 26)
 
         column = QVBoxLayout()
         column.setSpacing(10)
+        self.track(column)
         self.play_button = self.texts.add(button(primary=True), "play")
         self.stats_button = self.texts.add(button(), "stats")
         self.settings_button = self.texts.add(button(), "settings")
@@ -162,7 +229,7 @@ class MenuScreen(Screen):
             b.clicked.connect(sig)
             column.addWidget(b, 0, Qt.AlignmentFlag.AlignHCenter)
         outer.addLayout(column)
-        outer.addSpacing(16)
+        self.gap(outer, 16)
 
         self.message = label("", "warning", wrap=True)
         self.message.setFixedWidth(560)      # с переносом строк и выравниванием по центру
@@ -179,6 +246,16 @@ class MenuScreen(Screen):
     def show_message(self, text):
         self.message.setText(text)
         self.message.setVisible(bool(text))
+        self.relayout()
+
+    def elements(self):
+        return [("logo", self.logo, None), ("title", self.title_label, None), ("subtitle", self.subtitle, None),
+                ("play", self.play_button, None), ("stats", self.stats_button, None),
+                ("settings", self.settings_button, None), ("quit", self.quit_button, None),
+                ("message", self.message, None), ("info", self.info, None)]
+
+    def flags(self):
+        return (int(not self.quit_button.isHidden()), int(not self.message.isHidden()))
 
     def set_info(self, settings):
         self._settings = dict(settings)
@@ -242,6 +319,7 @@ class MatchScreen(Screen):
         row = QHBoxLayout(self)
         row.setContentsMargins(14, 14, 14, 14)
         row.setSpacing(14)
+        self.track(row)
         self.board = Board()
         self.board.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         row.addWidget(self.board, 1)
@@ -265,6 +343,16 @@ class MatchScreen(Screen):
         self.timer.timeout.connect(self._tick)
         self.clock = QElapsedTimer()
 
+    def _block(self, box):
+        """Блок панели: свой виджет со своей раскладкой - сеть-дизайнер ставит блоки целиком."""
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(8)
+        self.track(lay)
+        box.addWidget(w)
+        return w, lay
+
     def _build_panel(self):
         panel = QFrame()
         panel.setObjectName("panel")
@@ -272,26 +360,30 @@ class MatchScreen(Screen):
         box = QVBoxLayout(panel)
         box.setContentsMargins(20, 18, 20, 18)
         box.setSpacing(8)
+        self.track(box)
+        self.panel = panel
         add = self.texts.add
 
-        box.addWidget(add(label("", "section"), "score", upper=True))
+        self.score_block, lay = self._block(box)
+        lay.addWidget(add(label("", "section"), "score", upper=True))
         self.score = label("", "big")
         self.score.setTextFormat(Qt.TextFormat.RichText)
         self.score.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        box.addWidget(self.score)
+        lay.addWidget(self.score)
         names = QHBoxLayout()
         self.name0 = add(label("", "value"), "you")
         self.name1 = add(label("", "value"), "net")
         names.addWidget(self.name0)
         names.addStretch(1)
         names.addWidget(self.name1)
-        box.addLayout(names)
+        lay.addLayout(names)
         self.round_info = label("", "muted")
-        box.addWidget(self.round_info)
-        box.addSpacing(6)
-        box.addWidget(separator())
+        lay.addWidget(self.round_info)
+        self.gap(lay, 6)
+        lay.addWidget(separator())
 
-        box.addWidget(add(label("", "section"), "lengths", upper=True))
+        self.lengths_block, lay = self._block(box)
+        lay.addWidget(add(label("", "section"), "lengths", upper=True))
         grid = QGridLayout()
         self.len0 = label("3", "value")
         self.len1 = label("3", "value")
@@ -299,11 +391,12 @@ class MatchScreen(Screen):
         grid.addWidget(self.len0, 0, 1, Qt.AlignmentFlag.AlignRight)
         grid.addWidget(add(label(), "net"), 1, 0)
         grid.addWidget(self.len1, 1, 1, Qt.AlignmentFlag.AlignRight)
-        box.addLayout(grid)
-        box.addSpacing(6)
-        box.addWidget(separator())
+        lay.addLayout(grid)
+        self.gap(lay, 6)
+        lay.addWidget(separator())
 
-        box.addWidget(add(label("", "section"), "confidence", upper=True))
+        self.conf_block, lay = self._block(box)
+        lay.addWidget(add(label("", "section"), "confidence", upper=True))
         conf_row = QHBoxLayout()
         self.conf_bar = QProgressBar()
         self.conf_bar.setRange(0, 1000)
@@ -313,21 +406,32 @@ class MatchScreen(Screen):
         self.conf_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         conf_row.addWidget(self.conf_bar, 1)
         conf_row.addWidget(self.conf_value)
-        box.addLayout(conf_row)
-        box.addWidget(add(label("", "muted", wrap=True), "confidence_hint"))
-        box.addSpacing(6)
-        box.addWidget(separator())
+        lay.addLayout(conf_row)
+        lay.addWidget(add(label("", "muted", wrap=True), "confidence_hint"))
+        self.gap(lay, 6)
+        lay.addWidget(separator())
 
-        box.addWidget(add(label("", "section"), "opponent", upper=True))
+        self.opponent_block, lay = self._block(box)
+        lay.addWidget(add(label("", "section"), "opponent", upper=True))
         self.opponent_info = label("", "value")
-        box.addWidget(self.opponent_info)
+        lay.addWidget(self.opponent_info)
         box.addStretch(1)
 
-        box.addWidget(add(label("", "muted"), "keys"))
+        self.keys_label = add(label("", "muted"), "keys")
+        box.addWidget(self.keys_label)
         self.pause_button = add(button(focus=False), "pause")
         self.pause_button.clicked.connect(self.pause)
         box.addWidget(self.pause_button)
         return panel
+
+    def elements(self):
+        return [("board", self.board, None), ("panel", self.panel, None),
+                ("score_block", self.score_block, "panel"), ("lengths_block", self.lengths_block, "panel"),
+                ("conf_block", self.conf_block, "panel"), ("opponent_block", self.opponent_block, "panel"),
+                ("keys", self.keys_label, "panel"), ("pause", self.pause_button, "panel")]
+
+    def design_layouts(self):
+        return [self.layout(), self.panel.layout()]
 
     def retranslate(self, t):
         super().retranslate(t)
@@ -530,8 +634,9 @@ class StatsScreen(Screen):
         add = self.texts.add
         outer = QVBoxLayout(self)
         outer.setContentsMargins(28, 22, 28, 16)
+        self.track(outer)
         outer.addLayout(self.header("stats", self.back.emit))
-        outer.addSpacing(8)
+        self.gap(outer, 8)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -540,6 +645,7 @@ class StatsScreen(Screen):
         body.setObjectName("scrollBody")
         scroll.setWidget(body)
         outer.addWidget(scroll, 1)
+        self.scroll = scroll
         box = QVBoxLayout(body)
         box.setContentsMargins(0, 0, 8, 8)
         box.setSpacing(14)
@@ -656,6 +762,9 @@ class StatsScreen(Screen):
             return f"<span style='color:{c['muted']}'>{t('no_world_passport')}</span>"
         return "<br>".join(parts)
 
+    def elements(self):
+        return [("title", self.title_label, None), ("back", self.back_button, None), ("scroll", self.scroll, None)]
+
     def accuracy_text(self):
         return self.world_label.text()
 
@@ -682,55 +791,58 @@ class SettingsScreen(Screen):
         self.ctx = ctx
         outer = QVBoxLayout(self)
         outer.setContentsMargins(28, 22, 28, 22)
+        self.track(outer)
         outer.addLayout(self.header("settings", self.back.emit))
-        outer.addSpacing(10)
+        self.gap(outer, 10)
 
-        form = card()
-        form.setMaximumWidth(720)
-        grid = QGridLayout(form)
-        grid.setContentsMargins(24, 20, 24, 20)
-        grid.setHorizontalSpacing(20)
-        grid.setVerticalSpacing(18)
-        grid.setColumnStretch(1, 1)
+        # две карточки рядом на всё окно под заголовком - как прокрутка «Статистики»
+        # (Алексей: в 1.1 настройки были прижаты в левый верхний угол)
+        cards = QHBoxLayout()
+        cards.setSpacing(14)
+        self.track(cards)
+        self.card_game, game_box, self.game_head = self._card("card_game")
+        self.card_view, view_box, self.view_head = self._card("card_view")
+        cards.addWidget(self.card_game, 1)
+        cards.addWidget(self.card_view, 1)
+        outer.addLayout(cards, 1)
 
         self.speed = QSlider(Qt.Orientation.Horizontal)
         self.speed.setRange(*st.SPEED_RANGE)
         self.speed.setSingleStep(5)
         self.speed.setPageStep(10)
         self.speed_value = label("", "value")
-        self._row(grid, 0, "speed", self.speed, self.speed_value, "speed_hint")
+        self.row_speed = self._row(game_box, "speed", self.speed, self.speed_value, "speed_hint")
 
         self.opponent = QComboBox()
         for lv in st.LEVELS:
             self.opponent.addItem(lv, lv)
-        self._row(grid, 1, "opponent", self.opponent, None, "opponent_hint")
+        self.row_opponent = self._row(game_box, "opponent", self.opponent, None, "opponent_hint")
+
+        self.food_map = self.texts.add(QCheckBox(), "food_map_box")
+        self.row_food_map = self._row(game_box, "food_map", self.food_map, None, "food_map_hint")
+        game_box.addStretch(1)
 
         self.volume = QSlider(Qt.Orientation.Horizontal)
         self.volume.setRange(*st.VOLUME_RANGE)
         self.volume_value = label("", "value")
-        self._row(grid, 2, "volume", self.volume, self.volume_value, None)
+        self.row_volume = self._row(view_box, "volume", self.volume, self.volume_value, None)
 
         self.theme_combo = QComboBox()
         for name in theme.THEMES:
             self.theme_combo.addItem(name, name)
-        self._row(grid, 3, "theme", self.theme_combo, None, None)
+        self.row_theme = self._row(view_box, "theme", self.theme_combo, None, None)
 
         self.lang_combo = QComboBox()
         for key, text in LANG_NAMES.items():
             self.lang_combo.addItem(text, key)
-        self._row(grid, 4, "language", self.lang_combo, None, None)
+        self.row_language = self._row(view_box, "language", self.lang_combo, None, None)
 
         self.palette = QComboBox()
         for i in range(len(PALETTES)):
             self.palette.addItem(PALETTES[i]["name"])
         self.preview = mini_board()
-        self._row(grid, 5, "field_colors", self.palette, None, None)
-        grid.addWidget(self.preview, 6, 1, Qt.AlignmentFlag.AlignLeft)
-
-        self.food_map = self.texts.add(QCheckBox(), "food_map_box")
-        self._row(grid, 7, "food_map", self.food_map, None, "food_map_hint")
-        outer.addWidget(form)
-        outer.addStretch(1)
+        self.row_palette = self._row(view_box, "field_colors", self.palette, None, None, extra=self.preview)
+        view_box.addStretch(1)
 
         self.speed.valueChanged.connect(lambda v: self._set("speed_ms", v))
         self.opponent.currentIndexChanged.connect(
@@ -742,10 +854,24 @@ class SettingsScreen(Screen):
         self.palette.currentIndexChanged.connect(lambda i: self._set("palette", i))
         self.food_map.toggled.connect(lambda on: self._set("show_food_map", bool(on)))
 
-    def _row(self, grid, row, name_key, widget, value, hint_key):
-        grid.addWidget(self.texts.add(label("", "value"), name_key), row, 0, Qt.AlignmentFlag.AlignTop)
-        col = QVBoxLayout()
-        col.setSpacing(4)
+    def _card(self, head_key):
+        c = card()
+        box = QVBoxLayout(c)
+        box.setContentsMargins(24, 20, 24, 20)
+        box.setSpacing(18)
+        self.track(box)
+        head = self.texts.add(label("", "section"), head_key, upper=True)
+        box.addWidget(head)
+        return c, box, head
+
+    def _row(self, box, name_key, widget, value, hint_key, extra=None):
+        """Строка настройки - свой виджет: подпись, элемент (и число справа), подсказка."""
+        row = QWidget()
+        col = QVBoxLayout(row)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(6)
+        self.track(col)
+        col.addWidget(self.texts.add(label("", "value"), name_key))
         line = QHBoxLayout()
         line.addWidget(widget, 1 if isinstance(widget, QSlider) else 0)
         if value is not None:
@@ -754,9 +880,24 @@ class SettingsScreen(Screen):
         if not isinstance(widget, QSlider):
             line.addStretch(1)
         col.addLayout(line)
+        if extra is not None:
+            col.addWidget(extra, 0, Qt.AlignmentFlag.AlignLeft)
         if hint_key:
             col.addWidget(self.texts.add(label("", "muted", wrap=True), hint_key))
-        grid.addLayout(col, row, 1)
+        box.addWidget(row)
+        return row
+
+    def elements(self):
+        return [("title", self.title_label, None), ("back", self.back_button, None),
+                ("card_game", self.card_game, None), ("game_head", self.game_head, "card_game"),
+                ("row_speed", self.row_speed, "card_game"), ("row_opponent", self.row_opponent, "card_game"),
+                ("row_food_map", self.row_food_map, "card_game"),
+                ("card_view", self.card_view, None), ("view_head", self.view_head, "card_view"),
+                ("row_volume", self.row_volume, "card_view"), ("row_theme", self.row_theme, "card_view"),
+                ("row_language", self.row_language, "card_view"), ("row_palette", self.row_palette, "card_view")]
+
+    def design_layouts(self):
+        return [self.layout(), self.card_game.layout(), self.card_view.layout()]
 
     def retranslate(self, t):
         super().retranslate(t)

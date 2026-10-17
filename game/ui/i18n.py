@@ -83,8 +83,10 @@ RU = {
     "language": "Язык",
     "field_colors": "Цвета поля",
     "food_map": "Карта еды",
-    "food_map_box": "Показывать, где сеть-мир родит еду",
-    "food_map_hint": "полупрозрачная подсветка поверх поля: чем ярче, тем вероятнее",
+    "food_map_box": "Показывать на поле",
+    "food_map_hint": "где сеть-мир родит еду: полупрозрачная подсветка поверх поля, чем ярче, тем вероятнее",
+    "card_game": "Игра",
+    "card_view": "Вид и звук",
 }
 
 EN = {
@@ -160,8 +162,10 @@ EN = {
     "language": "Language",
     "field_colors": "Board colours",
     "food_map": "Food map",
-    "food_map_box": "Show where the world network will put food",
-    "food_map_hint": "a translucent glow over the board: the brighter, the more likely",
+    "food_map_box": "Show on the board",
+    "food_map_hint": "where the world network will put food: a translucent glow over the board, the brighter, the more likely",
+    "card_game": "Game",
+    "card_view": "Look and sound",
 }
 
 TABLES = {"ru": RU, "en": EN}
