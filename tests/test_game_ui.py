@@ -328,7 +328,7 @@ def test_stats_show_design_card(make_window):
     w.show_stats()
     text = w.stats_screen.design_text()
     assert "3.0</b> px" in text and ">12</b>" in text and ">3</b>" in text and ">4</b>" in text and ">1</b>" in text
-    assert "0.70" in text and "97%" in text and "0.8%" in text
+    assert "0.70" in text and "97.0%" in text and "0.8%" in text
     assert w.stats_screen.visible_charts() == 6
     w.ctx.set_lang("en")
     w.show_stats()

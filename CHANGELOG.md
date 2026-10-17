@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.0.0 - 2026-10-17
+
+The rules were already a network; now the window and the board picture are too. The coded
+version stays only as the teacher and the fallback.
+
+- **Designer network** (`game/design/designer_net.py`, dense 16-384-384-69, own numpy layers):
+  from the screen, window size, theme, language, visible optional items and four noise numbers
+  it outputs a rectangle for every element of the screen and the window style (font scale,
+  corner radius, five accent colours). The widgets stay real Qt widgets; in AI mode the
+  screen's top layouts are switched off and every element gets `setGeometry` from the
+  network. Teacher: the 1.x layouts themselves in offscreen Qt on 2400 window sizes from
+  820x600 to 3840x2160, both languages, five font sizes, with code knobs following the same
+  noise (margins, spacing, font, radius, accent hue) - 19 200 layouts, 0.67 px mean error,
+  99.8% of 1200 held-out layouts pass the laws.
+- **Painter network** (`game/design/painter_net.py`, 21-384-384-1728): paints every board cell
+  as a 24x24 RGB tile from a cell key (empty, food, body, head, tail; whose snake; links to
+  neighbours; place along the snake; checker parity; crash), the palette and noise. Teacher:
+  a coded tile painter drawing what 1.x drew; tiles differ from it by 0.73% on average (worst
+  2.3%). Board frames redraw only the cells whose key changed - no slower than 1.1 (a test).
+- **Laws and fallback** (`game/design/laws.py`, `runtime.py`): inside the window and the
+  parent, no overlaps, room for the text (`heightForWidth` for wrapped lines), buttons at least
+  28 px, the board at least 320 px, WCAG contrast; every tile looks most like a coded tile of
+  its own kind and differs from it by at most 4%. On failure up to three new noises, then the
+  coded layout for the same noise, then the plain 1.1 layout; everything is logged silently
+  to `ai_ui.json`. In 240 launches over six window sizes the fallback was never needed.
+- **Statistics**: a new card shows how far the window is from the coded one on average and
+  how many times the fallback was used for the window and the board, plus the training
+  curves of both new networks.
+- **Settings** fill the whole window in two cards (Game; Look and sound), like Statistics -
+  in 1.1 they were a narrow column in the top-left corner.
+- Found on the way, each with a test: the code packs elements tight to their minimum size,
+  so the designer trains on rectangles with 1 px of room and an 8x penalty for undersizing
+  (78% -> 99.8% of layouts pass); settings hints keep room for three lines; the font is one
+  of five sizes; on a language switch the designer gets the new language together with the
+  new texts (the self-check caught a screen stuck on the fallback); OpenBLAS on 4 threads in
+  training (16 threads next to other processes made the painter 25 times slower).
+- Training: `python -m game.train.paint_train` (about 25 min) and
+  `python -m game.train.design_train` (about 17 min). The self-check (`--selftest`) also lays
+  out every screen and paints the board through the networks.
+- Tests: 313 (222 of the game and 91 of `aikit`); `tools/mutate.py` - deliberate breakages of
+  the laws, the fallback, the journal, the tiles and the settings layout, all caught.
+
 ## 1.1.0 - 2026-10-10
 
 The game follows the PythonAiGames contract: the same game opens in its own window and in a

@@ -98,3 +98,22 @@ def test_designer_inputs():
     x = D.inputs("settings", 1040, 720, "light", "en", (1, 0), np.full(4, 0.25))
     assert x.shape == (D.IN,) and x[0] == pytest.approx(1.04) and x[2 + 3] == 1 and x[7] == 1 and x[9] == 1
     assert x[10] == 1 and x[11] == 0 and np.all(x[12:] == 0.25)
+
+
+def test_tile_law_sees_a_tile_of_another_kind():
+    """Закон «узнаётся»: тайл еды на месте пустой клетки виден, даже если порог отличия
+    огромный."""
+    from game.design.laws import check_tiles
+    from game.design.tiles import EMPTY, FOOD, code_tiles, decode, group
+    from qt_app import qapp
+    qapp()
+    keys = common_keys()
+    code = code_tiles(keys, 0, np.zeros(4))
+    kinds = [group(k) for k in keys]
+    assert check_tiles(code, code, kinds, 0.01) == []
+    swapped = code.copy()
+    empty = [i for i, k in enumerate(keys) if decode(k)["kind"] == EMPTY]
+    food = [i for i, k in enumerate(keys) if decode(k)["kind"] == FOOD]
+    swapped[empty[0]] = code[food[0]]
+    problems = check_tiles(swapped, code, kinds, 1.0)
+    assert any("похож на вид 1" in p for p in problems), problems

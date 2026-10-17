@@ -42,6 +42,9 @@ def test_keys_of_the_start_field():
             assert dec(g, a)["conn"] >> d & 1 and dec(g, b)["conn"] >> cells.OPPOSITE[d] & 1
         ts = [dec(g, rc)["t"] for rc in chain[:-1]]
         assert ts == sorted(ts)
+    long = build(3, 12, [[(1, c) for c in range(11)]])          # змейка из 11 клеток
+    ts = [dec(T.key_grid(long), (1, c))["t"] for c in range(10)]
+    assert ts[0] == 0 and ts[-1] == 6 and ts == sorted(ts) and len(set(ts)) >= 6
     food = np.argwhere(f == cells.FOOD)[0]
     assert dec(g, tuple(food))["kind"] == T.FOOD
     assert dec(g, (0, 0))["kind"] == T.EMPTY and dec(g, (0, 1))["parity"] == 1

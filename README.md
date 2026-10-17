@@ -2,7 +2,7 @@
 
 # Neuro Snake
 
-**Two-player snake with not a single line of snake rules: the world is moved by a convolutional network of its own, and a second network plays against you.**
+**Two-player snake with not a single line of snake rules: the world is moved by a convolutional network of its own, a second network plays against you, and since 2.0 a third one lays out the window and a fourth paints the board cells.**
 
 [Download for Windows](https://github.com/ALEXalesha/SnakeAi/releases/latest) &nbsp;·&nbsp; [Русская версия этого файла](README.ru.md)
 
@@ -41,11 +41,19 @@ It sees a 15x15 window around its head, the direction to the nearest food and it
 | medium (imitation) | 12% / 40% / 48% | 100% |
 | strong (after reinforcement) | 9% / 29% / 62% | 100% |
 
+## The window and the board are made by networks (2.0)
+
+The widgets are still real Qt widgets (everything clicks, keys and focus as before), but where they stand and how they look is decided by a **designer network** (dense 16 -> 384 -> 384 -> 69): from the screen, window size, theme, language, what optional items are visible and four noise numbers it outputs a rectangle for every element and the window style (font scale, corner radius, five accent colours). Each board cell is painted by a **painter network** (21 -> 384 -> 384 -> 1728) as a 24x24 RGB tile from a cell key (what is in the cell, whose snake, which neighbours it links to, how far from the tail, checker parity, crash), the palette and noise. Both learned from the code of 1.x, which follows the same noise with its own knobs (margins, spacing, font, radius, accent hue; stroke width, head, eyes, food size) - so every launch the window is almost the same, never identical.
+
+The answer is checked by laws (`game/design/laws.py`): everything inside the window and its parent, no overlaps, enough room for the text, buttons at least 28 px high, the board square at least 320 px, readable contrast (WCAG 4.5 / 3); every painted tile must look more like a coded tile of its own kind than of another and differ from it by at most 4%. On failure the game tries up to three new noises, then falls back to the code, silently logs it in `ai_ui.json`, and the Statistics screen shows how often that happened and how far the window is from the coded one on average.
+
+On 1200 held-out layouts the designer is off by 0.67 px on average and 99.8% pass the laws; in 240 game launches (six window sizes from 820x600 to 3840x2120, different noise, both languages) the fallback was never needed. The first designer passed only 78% at the same mean error, because the code packs elements tight to their minimum size and a 2 px undershoot clips text: it now trains on rectangles with 1 px of room on each side and an 8x penalty for undersized width and height, settings hints keep room for three lines (their height used to jump with every extra wrapped line), the font is one of five sizes instead of a continuous knob, and training covers windows up to 4K. Painted tiles differ from the coded ones by 0.73% on average (worst 2.3%); all 30 held-out sets pass. Board frames redraw only cells whose key changed and are no slower than in 1.1 (a test).
+
 ## The window
 
 <img src="docs/preview_menu_en.png" width="440" alt="Menu"> <img src="docs/preview_stats_en.png" width="440" alt="Statistics">
 
-Qt (PySide6): menu, match with a 3-2-1 countdown and pause, statistics with both networks' training curves, settings (speed, opponent level, volume, theme, language, three board palettes, a food-map overlay), synthesized sounds, and the window reopens where it was closed.
+Qt (PySide6): menu, match with a 3-2-1 countdown and pause, statistics with the training curves of all four networks, settings in two cards across the whole window (speed, opponent level, food-map overlay; volume, theme, language, three board palettes), synthesized sounds, and the window reopens where it was closed.
 
 ## Running
 
@@ -56,7 +64,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Retrain with `python -m game.train.world_train` and `python -m game.train.player_train`; build with `python build.py`.
+Retrain with `python -m game.train.world_train`, `python -m game.train.player_train`, `python -m game.train.paint_train` and `python -m game.train.design_train`; build with `python build.py`.
 
 ## Part of AiGameRoom
 
@@ -64,6 +72,6 @@ Since 1.1.0 the game follows the [PythonAiGames contract](https://github.com/ALE
 
 ## Tests
 
-`python -m pytest -q` - 244 tests (153 of the game and 91 of the shared `aikit` kit): every teacher rule, the trained world network against the teacher on held-out fields, long snakes and whole rounds, the opponent against the bot, the window off-screen, and the contract entry point - the widget made the way the shell makes it, theme and language switched on the fly, every screen in English with no Russian left, pause/resume/shutdown, files written only to the data folder, the 1.0.x data migration. Deliberately broken rules, gradients, key queues and eleven breakages of the widget (pause, resume, shutdown, language, theme, palette, volume, Quit) turn them red.
+`python -m pytest -q` - 313 tests (222 of the game and 91 of the shared `aikit` kit): every teacher rule, the trained world network against the teacher on held-out fields, long snakes and whole rounds, the opponent against the bot, the window off-screen, and the contract entry point - the widget made the way the shell makes it, theme and language switched on the fly, every screen in English with no Russian left, pause/resume/shutdown, files written only to the data folder, the 1.0.x data migration. Deliberately broken rules, gradients, key queues and eleven breakages of the widget (pause, resume, shutdown, language, theme, palette, volume, Quit) turn them red. Since 2.0 also the layout laws, the designer and painter against the code, the fallback with a garbage network, missing models, language and theme switches, 10% wider fonts and windows from 820x600 to 4K; `tools/mutate.py` breaks the laws, the fallback, the journal, the tiles and the settings layout, and every breakage is caught.
 
 Python, numpy, PySide6. MIT licence.

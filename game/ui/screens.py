@@ -829,10 +829,10 @@ class StatsScreen(Screen):
                            code=b(journal.get("tile_fallbacks", 0), journal.get("tile_fallbacks", 0) == 0)))
         if num(designer.get("px_mean")) and num(designer.get("laws_pass")):
             lines.append(t("design_trained", px=b(f"{designer['px_mean']:.2f}"),
-                           laws=b(pct(designer["laws_pass"], 0), designer["laws_pass"] >= 0.95)))
+                           laws=b(pct(designer["laws_pass"]), designer["laws_pass"] >= 0.95)))
         if num(painter.get("diff_mean")) and num(painter.get("laws_pass")):
             lines.append(t("painter_trained", diff=b(pct(painter["diff_mean"])),
-                           laws=b(pct(painter["laws_pass"], 0), painter["laws_pass"] >= 0.95)))
+                           laws=b(pct(painter["laws_pass"]), painter["laws_pass"] >= 0.95)))
         if not lines:
             return f"<span style='color:{c['muted']}'>{t('design_none')}</span>"
         return "<br>".join(lines)

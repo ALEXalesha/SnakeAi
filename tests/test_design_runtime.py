@@ -111,6 +111,9 @@ def test_bad_net_falls_back_to_code_and_is_logged(made):
     assert not L.ai_mode(w.menu) and w.design.last["menu"]["source"] == "code"
     assert check_layout(w.menu, L.placed(w.menu)) == []
     assert j.data["layout_fallbacks"] >= 1 and j.data["layout_resamples"] >= 3
+    w.resize(1111, 777)                     # новый размер - ровно одно решение, без второго вызова
+    QTest.qWait(5)
+    assert not L.ai_mode(w.menu) and check_layout(w.menu, L.placed(w.menu)) == []
     assert any(e["what"].startswith("окно: menu") for e in j.data["last"])
     assert any(e["what"] == "окно: стиль" for e in j.data["last"])      # белый акцент без контраста
 
@@ -179,6 +182,23 @@ def test_wider_fonts_on_real_screen_still_fit(made):
         assert clipped == [], (screen.NAME, clipped)
 
 
+def test_fallback_reaches_the_1_1_window(made):
+    """Сеть провалилась, а раскладке кода по шуму тесно (окно минимальное, поля и промежутки
+    на максимуме, шрифт на 10% шире) - последний запасной вариант: окно 1.1 без шума."""
+    j = Journal()
+    w = made(design=AiDesign(Garbage(), None, j, rng=np.random.default_rng(9), z=np.array([1.0, 1.0, 1.0, 0.0])))
+    w.play()
+    for lb in w.findChildren(QLabel):
+        px = lb.font().pixelSize() if lb.font().pixelSize() > 0 else round(lb.font().pointSizeF() * 96 / 72)
+        lb.setStyleSheet(f"font-size: {round(px * 1.1)}px;")
+    w.resize(MIN_WIDTH + 1, MIN_HEIGHT + 1)
+    QTest.qWait(10)
+    ms = w.match_screen
+    assert w.design.last["match"]["source"] == "code"
+    assert check_layout(ms, L.placed(ms)) == []
+    assert [lb.text()[:20] for lb in wrapped(ms) if lb.heightForWidth(lb.width()) > lb.height()] == []
+
+
 @pytest.mark.parametrize("size", [(3840, 2160), (MIN_WIDTH, MIN_HEIGHT), (2560, 1440)])
 def test_any_window_size_obeys_the_laws(made, size):
     w = made(size=size)
@@ -213,9 +233,9 @@ def test_board_tiles_come_from_the_painter(made):
     code = code_tiles(keys, 0, tiles._z_of[0])
     assert not np.array_equal(net, code)                     # рисует сеть, не код
     assert np.abs(net.astype(int) - code).mean() / 255 <= tiles.limit
-    v = tiles.version
+    v, z = tiles.version, tiles.z.copy()
     w.play()
-    assert tiles.version == v + 1                           # новая партия - новая рука
+    assert tiles.version == v + 1 and not np.array_equal(tiles.z, z)     # новая партия - новая рука
 
 
 class BadPainter:
